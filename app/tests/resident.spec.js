@@ -37,12 +37,56 @@ test.describe('Home', () => {
     await expect(page.locator('[data-loc-pill]')).toHaveText('Location on');
   });
 
-  test('uses a labeled demo location when location is blocked', async ({ browser, baseURL }) => {
+  test('blocked location asks to turn it on, explains how, and recovers', async ({ browser, baseURL }) => {
     const ctx = await browser.newContext({ baseURL, viewport: { width: 390, height: 844 }, permissions: [] });
     await ctx.route(/(arcgisonline|openstreetmap\.org|cartocdn|googleapis|gstatic|open-meteo|nominatim|weather\.gov)/, (r) => r.abort());
     const page = await ctx.newPage();
     await page.goto('/');
-    await expect(page.locator('[data-loc-pill]')).toHaveText('Demo location', { timeout: 12000 });
+    const pill = page.locator('[data-action="relocate"]');
+    await expect(page.locator('[data-loc-pill]')).toHaveText('Allow location', { timeout: 12000 });
+    await expect(pill).toHaveClass(/off/);
+    await pill.click();
+    const sheet = page.locator('[data-loc-sheet]');
+    await expect(sheet).toBeVisible();
+    await expect(sheet.locator('.sheet-title')).toHaveText('Turn on location');
+    await expect(sheet.locator('.sheet-steps li').first()).toBeVisible();
+    // Still blocked: Try again keeps the sheet open and says so.
+    await sheet.locator('[data-action="loc-retry"]').click();
+    await expect(page.locator('[data-toast]')).toHaveText(/Still blocked/);
+    await expect(sheet).toBeVisible();
+    // The person turns location on in settings. The app notices on its own,
+    // closes the sheet, and switches to the real location.
+    await ctx.setGeolocation({ latitude: 34.1187, longitude: -118.2902, accuracy: 10 });
+    await ctx.grantPermissions(['geolocation']);
+    await expect(sheet).toBeHidden();
+    await expect(page.locator('[data-loc-pill]')).toHaveText('Location on');
+    await expect(pill).not.toHaveClass(/off/);
+    await ctx.close();
+  });
+
+  test('"Use demo location" closes the sheet and keeps going', async ({ browser, baseURL }) => {
+    const ctx = await browser.newContext({ baseURL, viewport: { width: 390, height: 844 }, permissions: [] });
+    await ctx.route(/(arcgisonline|openstreetmap\.org|cartocdn|googleapis|gstatic|open-meteo|nominatim|weather\.gov)/, (r) => r.abort());
+    const page = await ctx.newPage();
+    await page.goto('/');
+    await expect(page.locator('[data-loc-pill]')).toHaveText('Allow location', { timeout: 12000 });
+    await page.locator('[data-action="relocate"]').click();
+    await page.locator('[data-action="loc-demo"]').click();
+    await expect(page.locator('[data-loc-sheet]')).toBeHidden();
+    await expect(page.locator('[data-toast]')).toHaveText(/demo location/);
+    await ctx.close();
+  });
+
+  test('location turns on by itself when the person returns from settings', async ({ browser, baseURL }) => {
+    const ctx = await browser.newContext({ baseURL, viewport: { width: 390, height: 844 }, permissions: [] });
+    await ctx.route(/(arcgisonline|openstreetmap\.org|cartocdn|googleapis|gstatic|open-meteo|nominatim|weather\.gov)/, (r) => r.abort());
+    const page = await ctx.newPage();
+    await page.goto('/');
+    await expect(page.locator('[data-loc-pill]')).toHaveText('Allow location', { timeout: 12000 });
+    await ctx.grantPermissions(['geolocation']);
+    await ctx.setGeolocation({ latitude: 34.1187, longitude: -118.2902, accuracy: 10 });
+    await page.evaluate(() => document.dispatchEvent(new Event('visibilitychange')));
+    await expect(page.locator('[data-loc-pill]')).toHaveText('Location on');
     await ctx.close();
   });
 

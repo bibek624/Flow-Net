@@ -68,7 +68,7 @@ resident  ◄── nearby incidents, zones, alerts, NWS warnings for their loca
 
 ## Tests
 
-123 browser tests click through every screen in both themes: every report flow, help and silent help, offline saving, responder actions, live updates, alerts, profile switching, impact numbers, layout from 320 to 1600 pixels, text contrast, speed budgets, and zero console errors.
+125 browser tests click through every screen in both themes: every report flow, help and silent help, offline saving, responder actions, live updates, alerts, profile switching, impact numbers, layout from 320 to 1600 pixels, text contrast, speed budgets, and zero console errors.
 
 ```bash
 cd app

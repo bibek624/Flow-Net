@@ -285,3 +285,24 @@ textarea::placeholder, input::placeholder { color: var(--ink3); }
 
 /* OpenStreetMap fallback tiles in dark theme */
 .tiles-dark { filter: invert(1) hue-rotate(180deg) brightness(.9) contrast(.9) saturate(.4); }
+
+/* Location off: the pill asks for it, a sheet explains how */
+.pill.off { background: var(--amberSoft); color: var(--amberInk); box-shadow: inset 0 0 0 1.5px var(--amber); }
+.pill.off .accent { color: var(--amberInk); }
+.sheet-scrim { position: fixed; inset: 0; z-index: 40; background: rgba(0,0,0,.45); display: flex; align-items: flex-end; justify-content: center; animation: fade .15s ease-out; }
+.sheet { width: 100%; max-width: 480px; background: var(--card); color: var(--ink); border-radius: 26px 26px 0 0; padding: 22px 20px calc(env(safe-area-inset-bottom) + 14px); display: flex; flex-direction: column; gap: 12px; animation: rise .22s ease-out; box-shadow: 0 -10px 40px rgba(0,0,0,.25); }
+.sheet-icon { width: 52px; height: 52px; border-radius: 16px; background: var(--amberSoft); color: var(--amberInk); display: flex; align-items: center; justify-content: center; }
+.sheet-title { margin: 0; font-size: 26px; font-weight: 800; letter-spacing: -0.02em; }
+.sheet-lead { margin: 0; font-size: 16px; line-height: 1.4; color: var(--ink2); }
+.sheet-steps { margin: 4px 0 6px; padding-left: 22px; display: flex; flex-direction: column; gap: 8px; font-size: 16px; line-height: 1.35; }
+.sheet-steps:empty { display: none; }
+.sheet-steps li::marker { font-weight: 800; color: var(--accent); }
+@keyframes rise { from { transform: translateY(40px); opacity: 0; } to { transform: none; opacity: 1; } }
+@keyframes fade { from { opacity: 0; } to { opacity: 1; } }
+.sheet .btn { flex: none; width: 100%; }
+.sheet-link { justify-content: center; width: 100%; height: 48px; font-weight: 700; }
+/* The org name gives way so the location pill is never clipped */
+.topbar .wordmark { flex: 1; min-width: 0; }
+.topbar .wordmark > span { min-width: 0; overflow: hidden; }
+.topbar .wordmark .org { max-width: 100%; }
+.topbar-right { flex: none; }

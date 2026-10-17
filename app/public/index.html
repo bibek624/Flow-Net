@@ -231,6 +231,17 @@
     </div>
   </section>
 
+  <div class="sheet-scrim" data-loc-sheet hidden>
+    <div class="sheet" role="dialog" aria-modal="true" aria-labelledby="loc-sheet-title">
+      <div class="sheet-icon"><span data-icon="pin" data-size="28"></span></div>
+      <h2 class="sheet-title" id="loc-sheet-title" data-loc-sheet-title>Turn on location</h2>
+      <p class="sheet-lead" data-loc-sheet-lead></p>
+      <ol class="sheet-steps" data-loc-steps></ol>
+      <button class="btn primary" data-action="loc-retry">Try again</button>
+      <button class="link sheet-link" data-action="loc-demo">Use demo location</button>
+    </div>
+  </div>
+
   <div class="toast" data-toast hidden></div>
 </main>
 <script src="/vendor/leaflet/leaflet.js"></script>

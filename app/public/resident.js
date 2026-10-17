@@ -57,27 +57,88 @@ function toast(msg, ms = 3200) {
 const accText = () => (state.loc?.accuracy >= 1 ? `accurate to ${Math.round(state.loc.accuracy)} m` : 'GPS location');
 
 function renderLoc() {
-  $('[data-loc-pill]').textContent = state.loc ? (state.loc.demo ? 'Demo location' : 'Location on') : 'Finding you…';
+  const off = Boolean(state.loc?.demo);
+  $('[data-loc-pill]').textContent = state.loc ? (off ? 'Allow location' : 'Location on') : 'Finding you…';
+  $('[data-action="relocate"]').classList.toggle('off', off);
   const where = state.address || (state.loc ? `${state.loc.lat.toFixed(4)}, ${state.loc.lng.toFixed(4)}` : '');
   $('[data-loc-line]').textContent = state.loc ? `${where} attached${state.loc.demo ? ' (demo, location is off)' : ''}` : 'Finding your location…';
   $('[data-loc-share]').textContent = state.loc ? `${where} · ${state.loc.demo ? 'demo location' : accText()}` : 'Finding you…';
 }
 
+// Why the last attempt failed: 'denied' (person or browser said no),
+// 'unavailable' (no GPS fix), or 'unsupported'. Null once location works.
+state.locError = null;
+
 function locate({ fresh = false } = {}) {
   return new Promise((resolve) => {
     if (!fresh && state.loc && !state.loc.demo && Date.now() - state.loc.at < 120000) return resolve(state.loc);
-    if (!navigator.geolocation) return resolve(useDemoLocation());
+    if (!navigator.geolocation) {
+      state.locError = 'unsupported';
+      return resolve(useDemoLocation());
+    }
     navigator.geolocation.getCurrentPosition(
       (pos) => {
+        const wasDemo = !state.loc || state.loc.demo;
         state.loc = { lat: pos.coords.latitude, lng: pos.coords.longitude, accuracy: pos.coords.accuracy, at: Date.now() };
+        state.locError = null;
+        if (wasDemo) state.address = '';
         renderLoc();
         lookupAddress();
         resolve(state.loc);
       },
-      () => resolve(state.loc && !state.loc.demo ? state.loc : useDemoLocation()),
+      (err) => {
+        state.locError = err.code === 1 ? 'denied' : 'unavailable';
+        resolve(state.loc && !state.loc.demo ? state.loc : useDemoLocation());
+      },
       { enableHighAccuracy: true, timeout: 8000, maximumAge: 60000 },
     );
   });
+}
+
+// Browsers never show the location prompt again after a "Don't Allow", so the
+// person needs the exact place to turn it back on for their phone.
+function locationSteps() {
+  const ua = navigator.userAgent;
+  const ios = /iPhone|iPad|iPod/.test(ua) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+  if (ios && /CriOS/.test(ua)) return ['Open the Settings app.', 'Scroll down and tap Chrome.', 'Tap Location and choose While Using the App.', 'Come back here and tap Try again.'];
+  if (ios) return ['Tap aA at the left of the address bar.', 'Tap Website Settings.', 'Set Location to Allow.', 'Still blocked? Settings app, then Privacy & Security, Location Services, Safari Websites, While Using.'];
+  if (/Android/.test(ua)) return ['Tap the icon at the left of the address bar.', 'Tap Permissions, then Location.', 'Choose Allow.', "Make sure Location is on in your phone's quick settings."];
+  return ['Click the icon at the left of the address bar.', 'Find Location and choose Allow.', 'Come back here and click Try again.'];
+}
+
+function openLocSheet() {
+  const unavailable = state.locError === 'unavailable';
+  $('[data-loc-sheet-title]').textContent = unavailable ? "Can't find your location" : 'Turn on location';
+  $('[data-loc-sheet-lead]').textContent = unavailable
+    ? 'Your phone could not get a GPS fix. Check that Location is on for your phone, step outside or near a window, then try again.'
+    : 'Responders need to know where you are. Your browser has location turned off for this site.';
+  $('[data-loc-steps]').innerHTML = unavailable ? '' : locationSteps().map((s) => `<li>${esc(s)}</li>`).join('');
+  $('[data-loc-sheet]').hidden = false;
+}
+
+const closeLocSheet = () => ($('[data-loc-sheet]').hidden = true);
+
+async function retryLocation(button) {
+  if (button) { button.disabled = true; button.textContent = 'Checking…'; }
+  await locate({ fresh: true });
+  if (button) { button.disabled = false; button.textContent = 'Try again'; }
+  if (!state.loc.demo) {
+    closeLocSheet();
+    toast('Location is on.');
+    checkSituation();
+    return true;
+  }
+  return false;
+}
+
+// When the person comes back from Settings, check again without a reload.
+function watchPermission() {
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible' && state.loc?.demo && state.locError !== 'unsupported') retryLocation();
+  });
+  navigator.permissions?.query({ name: 'geolocation' }).then((status) => {
+    status.onchange = () => { if (status.state === 'granted') retryLocation(); };
+  }).catch(() => {});
 }
 
 function useDemoLocation() {
@@ -765,7 +826,15 @@ function init() {
       toast(navigator.onLine ? 'Sending…' : 'Still offline. It will send when you have signal.', 1800);
       return outbox.flush();
     }
-    if (act === 'relocate') locate({ fresh: true }).then(() => { toast(state.loc.demo ? 'Location is off. Using a demo location.' : 'Location updated.'); checkSituation(); });
+    if (act === 'relocate') {
+      return locate({ fresh: true }).then(() => {
+        if (state.loc.demo) return openLocSheet();
+        toast('Location updated.');
+        checkSituation();
+      });
+    }
+    if (act === 'loc-retry') return retryLocation(btn).then((ok) => { if (!ok) { openLocSheet(); toast(state.locError === 'denied' ? 'Still blocked. Follow the steps above, then try again.' : 'Still no GPS fix. Try again in a moment.'); } });
+    if (act === 'loc-demo') { closeLocSheet(); return toast('Using a demo location near USC. Reports will show as demo.'); }
     if (act === 'cam-retake') camera.reset();
     if (act === 'cam-send') {
       if (!state.cam) return toast('Still preparing the file. Try again in a second.');
@@ -809,6 +878,7 @@ function init() {
 
   fetch('/api/config').then((r) => r.json()).then(applyConfig).catch(() => {});
   locate().then(checkSituation);
+  watchPermission();
   setInterval(checkSituation, 12000);
   window.addEventListener('online', () => outbox.flush());
   window.addEventListener('offline', renderOutbox);
