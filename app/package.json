@@ -1,0 +1,21 @@
+{
+  "name": "incident-reporting-app",
+  "version": "1.0.0",
+  "description": "Resident incident reporting with AI triage and a live responder map",
+  "main": "server.js",
+  "scripts": {
+    "start": "node --disable-warning=ExperimentalWarning server.js",
+    "dev": "node --disable-warning=ExperimentalWarning --watch server.js"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.135.0",
+    "express": "^4.22.3",
+    "multer": "^2.4.0",
+    "zod": "^4.6.7"
+  },
+  "type": "module",
+  "private": true,
+  "engines": {
+    "node": ">=22.13"
+  }
+}

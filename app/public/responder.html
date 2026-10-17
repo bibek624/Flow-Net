@@ -1,0 +1,128 @@
+<!doctype html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Responder dashboard</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<link rel="stylesheet" href="/responder.css">
+</head>
+<body>
+<div class="shell">
+  <header class="top">
+    <div class="top-left">
+      <div class="logo"><span class="logo-mark"></span><span data-app-name>Beacon</span><span class="faint">Responder</span></div>
+      <div class="live"><span class="live-dot"></span><span>Live · <span data-clock></span></span></div>
+    </div>
+    <div class="stats">
+      <div class="stat"><b data-stat="active">0</b><span>Active incidents</span></div>
+      <div class="stat"><b data-stat="reports_last_hour">0</b><span>Reports, last hour</span></div>
+      <div class="stat red"><b data-stat="urgent">0</b><span>Urgent help</span></div>
+      <div class="stat"><b data-stat="awaiting_review">0</b><span>Awaiting review</span></div>
+    </div>
+    <div class="top-right">
+      <span class="ai-badge" data-ai-badge></span>
+      <button class="ghost" data-action="replay" title="Send a new brush fire through the system, one report at a time">Replay live demo</button>
+      <button class="ghost" data-action="reset" title="Clear everything and reload the demo incidents">Reset</button>
+      <a class="ghost" href="/" target="_blank" rel="noopener">Open resident app</a>
+      <button class="icon-btn" data-action="theme" aria-label="Toggle theme"><span data-icon="sun"></span></button>
+    </div>
+  </header>
+
+  <div class="body">
+    <aside class="left">
+      <div class="filters">
+        <input class="search" placeholder="Search incidents" data-search>
+        <select data-type-filter><option value="">All types</option></select>
+        <select data-conf-filter>
+          <option value="0">Any confidence</option><option value="1">Likely +</option><option value="2">Confirmed</option>
+        </select>
+      </div>
+      <section class="block urgent-block">
+        <div class="block-head"><span class="eyebrow red">Urgent help</span><span class="count red" data-urgent-count>0</span><span class="faint small">Longest wait first</span></div>
+        <div data-urgent-list></div>
+      </section>
+      <section class="block">
+        <div class="block-head"><span class="eyebrow">Incidents</span><span class="count" data-inc-count>0</span><span class="faint small">By priority</span></div>
+        <div data-inc-list></div>
+      </section>
+    </aside>
+
+    <main class="mapwrap">
+      <div id="map"></div>
+      <div class="map-layers" data-layers></div>
+      <div class="legend" data-legend></div>
+    </main>
+
+    <aside class="detail" data-detail hidden>
+      <div class="detail-scroll" data-detail-body></div>
+      <div class="detail-actions">
+        <div class="action-grid">
+          <button class="act" data-action="confirm">Confirm</button>
+          <button class="act" data-action="dispatch">Dispatch / hand off</button>
+          <button class="act primary" data-action="alert">Send targeted alert</button>
+          <button class="act" data-action="resolve">Mark resolved</button>
+        </div>
+        <div class="faint small center">Alerts, dispatch, and marking someone safe always need your approval. Nothing is sent automatically.</div>
+      </div>
+    </aside>
+  </div>
+</div>
+
+<div class="scrim" data-modal hidden>
+  <div class="modal">
+    <div class="modal-head">
+      <div>
+        <div class="modal-title">Send targeted alert</div>
+        <div class="faint" data-modal-sub></div>
+      </div>
+      <button class="icon-btn" data-action="close-modal" aria-label="Close"><span data-icon="x"></span></button>
+    </div>
+    <div class="modal-body">
+      <div class="modal-left">
+        <div id="alertmap"></div>
+        <div class="faint small" data-zone-basis></div>
+        <label class="field">
+          <span class="field-row"><span>Zone size</span><b data-zone-scale-label>100%</b></span>
+          <input type="range" min="50" max="200" step="10" value="100" data-zone-scale>
+        </label>
+        <div class="reach"><b data-residents>~0</b> <span>residents reached (estimate)</span></div>
+        <div class="faint small">Estimate uses area × average population density. Reaching only this area instead of the whole city.</div>
+      </div>
+      <div class="modal-right">
+        <div class="field-label">Alert level</div>
+        <div class="seg" data-levels></div>
+        <label class="field">
+          <span class="field-row"><span>Message</span><span class="faint small" data-msg-len>0 / 360</span></span>
+          <textarea data-msg rows="5" maxlength="360"></textarea>
+        </label>
+        <div class="field-label">Preview on residents' phones</div>
+        <div class="phone-notif">
+          <div class="notif-app"><span class="logo-mark sm"></span><span data-app-name>Beacon</span> · Emergency alert<span class="faint"> now</span></div>
+          <div class="notif-title" data-notif-title></div>
+          <div class="notif-msg" data-notif-msg></div>
+        </div>
+        <div class="channels">
+          <label><input type="checkbox" data-channel="push" checked> App alert</label>
+          <label><input type="checkbox" data-channel="sms"> SMS to opted-in</label>
+        </div>
+      </div>
+    </div>
+    <div class="modal-foot">
+      <span class="faint small">Nothing is sent until you approve.</span>
+      <div class="row">
+        <button class="ghost" data-action="close-modal">Cancel</button>
+        <button class="act primary" data-action="send-alert">Approve and send</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="toast" data-toast hidden></div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="/responder.js" type="module"></script>
+</body>
+</html>

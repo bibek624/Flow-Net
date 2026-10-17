@@ -1,0 +1,9 @@
+{
+  "name": "Report an incident",
+  "short_name": "Report",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#F4F5F7",
+  "theme_color": "#F4F5F7",
+  "icons": [{ "src": "/icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" }]
+}
