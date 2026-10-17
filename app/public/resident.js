@@ -1,47 +1,30 @@
-// Resident reporting app. Plain JS, no build step.
+// Flare resident app. Plain JS, no build step.
+import { icon, paintIcons } from '/icons.js';
 
 const $ = (sel, root = document) => root.querySelector(sel);
 const $$ = (sel, root = document) => [...root.querySelectorAll(sel)];
+const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
 
-const ICONS = {
-  pin: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21s-7-6.2-7-11.5a7 7 0 0 1 14 0C19 14.8 12 21 12 21z"/><circle cx="12" cy="9.5" r="2.5"/></svg>',
-  'pin-sm': '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21s-7-6.2-7-11.5a7 7 0 0 1 14 0C19 14.8 12 21 12 21z"/><circle cx="12" cy="9.5" r="2.5"/></svg>',
-  camera: '<svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 8.5h3l1.8-2.5h6.4L17 8.5h3V19H4z"/><circle cx="12" cy="13.2" r="3.4"/></svg>',
-  'camera-sm': '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M4 8.5h3l1.8-2.5h6.4L17 8.5h3V19H4z"/><circle cx="12" cy="13.2" r="3.4"/></svg>',
-  mic: '<svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5.5 11a6.5 6.5 0 0 0 13 0M12 17.5V21"/></svg>',
-  'mic-sm': '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5.5 11a6.5 6.5 0 0 0 13 0M12 17.5V21"/></svg>',
-  'mic-lg': '<svg width="52" height="52" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5.5 11a6.5 6.5 0 0 0 13 0M12 17.5V21"/></svg>',
-  lines: '<svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M5 7h14M5 12h14M5 17h9"/></svg>',
-  'lines-sm': '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"><path d="M5 7h14M5 12h14M5 17h9"/></svg>',
-  chevron: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg>',
-  close: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.4" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg>',
-  'close-dark': '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg>',
-  phone: '<svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M5 4h3.5l2 5-2.5 1.5a11 11 0 0 0 5.5 5.5l1.5-2.5 5 2V19a1 1 0 0 1-1 1A16 16 0 0 1 4 5a1 1 0 0 1 1-1z"/></svg>',
-  person: '<svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M4.5 20.5a7.5 7.5 0 0 1 15 0"/></svg>',
-  sun: '<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg>',
-  moon: '<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 14.5A8 8 0 1 1 9.5 4a6.5 6.5 0 0 0 10.5 10.5z"/></svg>',
-  auto: '<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="8.5"/><path d="M12 3.5v17a8.5 8.5 0 0 0 0-17z" fill="currentColor" stroke="none"/></svg>',
-  message: '<svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M4 5h16v11H9.5L4 20z"/></svg>',
-};
-const icon = (name) => ICONS[name] || '';
-function paintIcons(root = document) {
-  for (const el of $$('[data-icon]', root)) el.innerHTML = icon(el.dataset.icon);
-}
-
-const CATEGORY_LABELS = { fire: 'Fire', smoke: 'Smoke', flood: 'Flood', power: 'Power out', gas: 'Gas smell', road: 'Road blocked', other: 'Other' };
-const CHIPS = ['Fire', 'Smoke', 'Flood', 'Power out', 'Gas smell', 'Road blocked', 'Other'];
 const DEMO_LOCATION = { lat: 34.0224, lng: -118.2851, accuracy: 50, demo: true }; // USC campus
 
 const state = {
   screen: 'home',
+  config: null,
+  categories: [],
   loc: null,
   address: '',
   chips: new Set(),
   help: { trapped: false, hurt: false, silent: false },
   helpReportId: null,
   lastReportId: null,
+  pendingLocalId: null,
   cam: null,
+  nearby: [],
+  alert: null,
+  nws: [],
 };
+
+const catOf = (key) => state.categories.find((c) => c.key === key) || { label: key || 'Report', color: 'other', icon: 'other' };
 
 // ---------- Navigation ----------
 
@@ -57,6 +40,7 @@ function go(screen) {
   if (screen === 'camera') camera.reset();
   if (screen === 'text') setTimeout(() => $('[data-text]').focus(), 50);
   if (screen === 'help') renderHelp();
+  if (screen === 'home') setTimeout(() => minimap.refresh(), 50);
 }
 
 function toast(msg, ms = 3200) {
@@ -70,12 +54,6 @@ function toast(msg, ms = 3200) {
 // ---------- Location ----------
 
 const accText = () => (state.loc?.accuracy >= 1 ? `accurate to ${Math.round(state.loc.accuracy)} m` : 'GPS location');
-
-function locLabel() {
-  if (!state.loc) return 'Finding you…';
-  if (state.loc.demo) return 'Demo location';
-  return state.address || accText();
-}
 
 function renderLoc() {
   $('[data-loc-pill]').textContent = state.loc ? (state.loc.demo ? 'Demo location' : 'Location on') : 'Finding you…';
@@ -151,7 +129,7 @@ const retryable = (err) => !(err instanceof HttpError) || err.status >= 500;
 
 async function submit(button, fields, files) {
   button.disabled = true;
-  const label = button.textContent;
+  const label = button.innerHTML;
   button.textContent = 'Sending…';
   let payload;
   try {
@@ -172,7 +150,7 @@ async function submit(button, fields, files) {
     return false;
   } finally {
     button.disabled = false;
-    button.textContent = label;
+    button.innerHTML = label;
   }
 }
 
@@ -519,7 +497,7 @@ const sent = {
           $('[data-sent-type-wait]').hidden = true;
           const tag = $('[data-sent-type]');
           tag.hidden = false;
-          tag.textContent = data.incident?.title || CATEGORY_LABELS[r.category] || 'Report';
+          tag.textContent = data.incident?.title || catOf(r.category).label;
         }
         if (data.incident) {
           steps.nearby.className = 'step done';
@@ -547,14 +525,14 @@ function renderHelp() {
   const silent = state.help.silent;
   $('[data-connect-title]').textContent = silent ? 'Text with a responder' : 'Connect me to a person';
   $('[data-connect-sub]').textContent = silent ? 'Silent. No call or sound.' : 'A responder sees you on the map';
-  $('[data-connect-icon]').innerHTML = icon(silent ? 'message' : 'person');
-  const defs = [['trapped', "I'm trapped"], ['hurt', 'Someone is hurt'], ['silent', "I can't speak safely"]];
+  $('[data-connect-icon]').innerHTML = icon(silent ? 'text' : 'user', 28);
+  const defs = state.config?.profile.helpFlags || [['trapped', "I'm trapped"], ['hurt', 'Someone is hurt'], ['silent', "I can't speak safely"]];
   const box = $('[data-toggles]');
   box.innerHTML = '';
   for (const [k, label] of defs) {
     const row = document.createElement('button');
     row.className = `toggle-row${state.help[k] ? ' on' : ''}`;
-    row.innerHTML = `<span>${label}</span><span class="switch"></span>`;
+    row.innerHTML = `<span>${esc(label)}</span><span class="switch"></span>`;
     row.onclick = () => {
       state.help[k] = !state.help[k];
       renderHelp();
@@ -562,14 +540,15 @@ function renderHelp() {
     box.append(row);
   }
   const sharing = Boolean(state.helpReportId);
-  $('.live-dot').classList.toggle('on', sharing);
+  $('.live-dot:not(.small)').classList.toggle('on', sharing);
   $('.sharing-title').textContent = sharing ? 'Sharing your location with responders' : 'Your location is sent when you ask for help';
 }
 
 const helpPoll = { t: null };
 async function sendHelp(button) {
   const flags = Object.entries(state.help).filter(([, v]) => v).map(([k]) => k);
-  const text = [state.help.trapped && "I'm trapped", state.help.hurt && 'Someone is hurt', state.help.silent && "I can't speak safely"].filter(Boolean).join('. ');
+  const labels = Object.fromEntries(state.config?.profile.helpFlags || []);
+  const text = flags.map((f) => labels[f]).filter(Boolean).join('. ');
   button.disabled = true;
   try {
     const id = await sendReport({ kind: 'help', flags, text: text || 'Asked to be connected to a responder.' });
@@ -590,45 +569,138 @@ async function sendHelp(button) {
           $('[data-help-status-sub]').textContent = state.help.silent ? 'Stay where you are if it is safe. Keep this screen open.' : 'Keep your phone nearby.';
         } else if (report.help_status === 'resolved') {
           $('[data-help-status-title]').textContent = 'Marked resolved by a responder';
-          $('[data-help-status-sub]').textContent = 'If you still need help, call 911.';
+          $('[data-help-status-sub]').textContent = `If you still need help, call ${emergencyNumber()}.`;
           clearInterval(helpPoll.t);
         } else {
-          $('[data-help-status-sub]').textContent = `Responders can see you on their map. Waiting ${mins < 1 ? 'under a minute' : `${mins} min`}. If you are in danger right now, call 911.`;
+          $('[data-help-status-sub]').textContent = `Responders can see you on their map. Waiting ${mins < 1 ? 'under a minute' : `${mins} min`}. If you are in danger right now, call ${emergencyNumber()}.`;
         }
       } catch {}
     };
     check();
     helpPoll.t = setInterval(check, 3000);
   } catch (err) {
-    toast(retryable(err) ? 'No connection. Call 911 now if you can. Your request was not sent.' : `${err.message}. Call 911 if you can.`);
+    toast(retryable(err) ? `No connection. Call ${emergencyNumber()} now if you can. Your request was not sent.` : `${err.message}. Call ${emergencyNumber()} if you can.`);
   } finally {
     button.disabled = false;
   }
 }
 
-// ---------- Near you ----------
+const emergencyNumber = () => state.config?.profile.emergencyNumber || '911';
 
-const CAT_COLOR = { fire: 'oklch(0.66 0.17 45)', smoke: 'oklch(0.62 0.13 305)', flood: 'oklch(0.6 0.14 245)', power: 'oklch(0.7 0.14 100)', gas: 'oklch(0.62 0.13 145)', road: 'oklch(0.6 0.03 255)', other: 'oklch(0.6 0.02 255)' };
+// ---------- Situation: alerts, nearby incidents, weather warnings ----------
+
 const distText = (m) => (m < 1000 ? `${Math.round(m / 10) * 10} m` : `${(m / 1609.34).toFixed(1)} mi`);
 
-async function checkNearby() {
+async function checkSituation() {
   if (!state.loc) return;
-  try {
-    const { incidents } = await (await fetch(`/api/nearby?lat=${state.loc.lat}&lng=${state.loc.lng}&radius_km=8`)).json();
-    const box = $('[data-nearby]');
-    box.hidden = incidents.length === 0;
-    $('[data-note]').hidden = incidents.length > 0;
-    $('[data-nearby-list]').innerHTML = incidents
-      .slice(0, 3)
-      .map((i) => `<div class="near-row"><span class="near-icon" style="background:${CAT_COLOR[i.category] || CAT_COLOR.other}"></span>
-        <div class="near-main"><div class="near-title">${escapeHtml(i.title)}${i.in_zone ? '<span class="near-zone">You are in the area</span>' : ''}</div>
-        <div class="near-sub">${i.report_count} report${i.report_count === 1 ? '' : 's'} · ${i.confidence}</div></div>
-        <div class="near-dist">${distText(i.distance_m)}</div></div>`)
-      .join('');
-  } catch {}
+  const q = `lat=${state.loc.lat}&lng=${state.loc.lng}`;
+  const [alerts, nearby, context] = await Promise.all([
+    fetch(`/api/alerts/active?${q}`).then((r) => r.json()).catch(() => null),
+    fetch(`/api/nearby?${q}&radius_km=8`).then((r) => r.json()).catch(() => null),
+    fetch(`/api/context?${q}`).then((r) => r.json()).catch(() => null),
+  ]);
+  if (alerts) state.alert = alerts.alerts[0] || null;
+  if (nearby) state.nearby = nearby.incidents;
+  if (context) state.nws = context.nws || [];
+  renderSituation();
 }
 
-const escapeHtml = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
+function renderSituation() {
+  // Alert banner
+  const a = state.alert;
+  const banner = $('[data-alert]');
+  banner.hidden = !a;
+  if (a) {
+    $('[data-alert-level]').textContent = `${a.level} · ${new Date(a.created_at).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}`;
+    $('[data-alert-title]').textContent = a.title;
+    $('[data-alert-msg]').textContent = a.message;
+  }
+
+  // Status strip and page tint
+  const near = state.nearby;
+  const inZone = near.find((i) => i.in_zone);
+  const closest = near[0];
+  const level = a || inZone ? 'danger' : near.length ? 'watch' : 'calm';
+  const strip = $('[data-strip]');
+  strip.dataset.level = level;
+  $('#app').dataset.threat = level === 'calm' ? 'none' : level;
+  const dot = $('[data-strip-dot]');
+  dot.className = `live-dot small ${level === 'danger' ? 'on' : 'green'}`;
+  if (level === 'danger') {
+    $('[data-strip-label]').textContent = a ? 'Alert for your location' : 'You are in an incident area';
+    $('[data-strip-title]').textContent = a ? a.title : `${inZone.title} · ${distText(inZone.distance_m)} away`;
+    $('[data-strip-sub]').textContent = a ? 'Follow the alert above. Report what you see if it is safe.' : `${inZone.report_count} people have reported this. Responders can see it. Report what you see if it is safe.`;
+  } else if (level === 'watch') {
+    $('[data-strip-label]').textContent = 'Near you';
+    $('[data-strip-title]').textContent = `${near.length} active incident${near.length === 1 ? '' : 's'} within 5 mi`;
+    $('[data-strip-sub]').textContent = `Closest: ${closest.title}, ${distText(closest.distance_m)} away, ${closest.report_count} report${closest.report_count === 1 ? '' : 's'}.`;
+  } else {
+    $('[data-strip-label]').textContent = 'Near you';
+    $('[data-strip-title]').textContent = 'All quiet within 5 mi';
+    $('[data-strip-sub]').textContent = 'No active incidents reported near you right now.';
+  }
+  const nws = state.nws[0];
+  $('[data-strip-nws]').hidden = !nws;
+  if (nws) {
+    const until = nws.expires ? ` until ${new Date(nws.expires).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}` : '';
+    $('[data-strip-nws-text]').textContent = `${nws.event}${until} · National Weather Service`;
+  }
+
+  // Near-you list
+  const box = $('[data-nearby]');
+  box.hidden = near.length === 0;
+  $('[data-note]').hidden = near.length > 0;
+  $('[data-nearby-list]').innerHTML = near
+    .slice(0, 3)
+    .map((i) => `<div class="near-row"><span class="near-icon" style="background:var(--c-${esc(i.color || 'other')})">${icon(i.icon || 'other', 20)}</span>
+      <div class="near-main"><div class="near-title">${esc(i.title)}${i.in_zone ? '<span class="near-zone">You are in the area</span>' : ''}</div>
+      <div class="near-sub">${i.report_count} report${i.report_count === 1 ? '' : 's'} · ${esc(i.confidence)}</div></div>
+      <div class="near-dist">${distText(i.distance_m)}</div></div>`)
+    .join('');
+
+  minimap.render();
+}
+
+// A small live map on the home screen: you, and what is happening around you.
+const minimap = {
+  map: null, layer: null, you: null,
+  ensure() {
+    if (this.map || !window.L || !state.loc) return;
+    this.map = L.map('minimap', { zoomControl: false, attributionControl: true, dragging: false, scrollWheelZoom: false, doubleClickZoom: false, touchZoom: false, boxZoom: false, keyboard: false, tap: false });
+    const dark = matchMedia('(prefers-color-scheme: dark)').matches && document.documentElement.dataset.theme !== 'light' || document.documentElement.dataset.theme === 'dark';
+    this.tiles = L.tileLayer(`https://{s}.basemaps.cartocdn.com/${dark ? 'dark_all' : 'light_all'}/{z}/{x}/{y}{r}.png`, { subdomains: 'abcd', maxZoom: 19, attribution: '&copy; OpenStreetMap &copy; CARTO' }).addTo(this.map);
+    this.layer = L.layerGroup().addTo(this.map);
+    this.you = L.marker([state.loc.lat, state.loc.lng], { icon: L.divIcon({ className: '', html: '<div class="minimap-you"></div>', iconSize: [16, 16] }), interactive: false }).addTo(this.map);
+  },
+  render() {
+    const box = $('[data-minimap]');
+    const show = Boolean(state.loc) && state.nearby.length > 0;
+    box.hidden = !show;
+    if (!show) return;
+    this.ensure();
+    if (!this.map) return;
+    this.layer.clearLayers();
+    const css = (v) => getComputedStyle(document.documentElement).getPropertyValue(v).trim();
+    const pts = [[state.loc.lat, state.loc.lng]];
+    for (const i of state.nearby) {
+      if (i.zone) L.polygon(i.zone, { color: css('--red'), weight: 1, dashArray: '4 4', fillColor: css('--red'), fillOpacity: i.in_zone ? 0.12 : 0.06, interactive: false }).addTo(this.layer);
+      L.circleMarker([i.lat, i.lng], { radius: 7 + Math.min(i.report_count, 20) * 0.35, weight: 2, color: '#fff', fillColor: css(`--c-${i.color || 'other'}`), fillOpacity: 0.95, interactive: false }).addTo(this.layer);
+      pts.push([i.lat, i.lng]);
+    }
+    this.you.setLatLng([state.loc.lat, state.loc.lng]);
+    this.map.fitBounds(L.latLngBounds(pts).pad(0.35), { animate: false, maxZoom: 14 });
+    setTimeout(() => this.map.invalidateSize(), 30);
+  },
+  refresh() {
+    if (this.map) { this.map.invalidateSize(); this.render(); }
+  },
+  retheme() {
+    if (!this.map) return;
+    this.map.remove();
+    this.map = null;
+    this.render();
+  },
+};
 
 // ---------- Theme: system, light, or dark ----------
 
@@ -640,27 +712,35 @@ function applyTheme(theme) {
   if (theme === 'system') delete document.documentElement.dataset.theme;
   else document.documentElement.dataset.theme = theme;
   try { theme === 'system' ? localStorage.removeItem('resident-theme') : localStorage.setItem('resident-theme', theme); } catch {}
-  $('[data-theme-icon]').innerHTML = icon(theme === 'light' ? 'sun' : theme === 'dark' ? 'moon' : 'auto');
+  $('[data-theme-icon]').innerHTML = icon(theme === 'light' ? 'sun' : theme === 'dark' ? 'moon' : 'auto', 18);
   $('[data-action="theme"]').setAttribute('aria-label', `Theme: ${theme}. Tap to change.`);
   const dark = theme === 'dark' || (theme === 'system' && matchMedia('(prefers-color-scheme: dark)').matches);
-  for (const m of $$('meta[name="theme-color"]')) m.setAttribute('content', dark ? '#0B1220' : '#F4F5F7');
+  for (const m of $$('meta[name="theme-color"]')) m.setAttribute('content', dark ? '#0D0F13' : '#F5F4F1');
+  minimap.retheme();
 }
 
-// ---------- Alerts for this location ----------
+// ---------- Config: what this deployment lets people report ----------
 
-async function checkAlerts() {
-  if (!state.loc) return;
-  try {
-    const { alerts } = await (await fetch(`/api/alerts/active?lat=${state.loc.lat}&lng=${state.loc.lng}`)).json();
-    const a = alerts[0];
-    const el = $('[data-alert]');
-    el.hidden = !a;
-    if (a) {
-      $('[data-alert-level]').textContent = `${a.level} · ${new Date(a.created_at).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}`;
-      $('[data-alert-title]').textContent = a.title;
-      $('[data-alert-msg]').textContent = a.message;
-    }
-  } catch {}
+function applyConfig(c) {
+  state.config = c;
+  state.categories = c.profile.categories;
+  $$('[data-app-name]').forEach((el) => (el.textContent = c.app_name));
+  $('[data-org]').textContent = c.profile.org;
+  document.title = `${c.app_name} · Report what you see`;
+  $('[data-emergency-number]').textContent = c.profile.emergencyNumber;
+  $('[data-call]').href = `tel:${c.profile.emergencyNumber}`;
+  const chipBox = $('[data-chips]');
+  chipBox.innerHTML = '';
+  for (const cat of state.categories) {
+    const b = document.createElement('button');
+    b.className = 'chip';
+    b.innerHTML = `${icon(cat.icon, 18)}<span>${esc(cat.label)}</span>`;
+    b.onclick = () => {
+      state.chips.has(cat.label) ? state.chips.delete(cat.label) : state.chips.add(cat.label);
+      b.classList.toggle('on', state.chips.has(cat.label));
+    };
+    chipBox.append(b);
+  }
 }
 
 // ---------- Wire up ----------
@@ -668,17 +748,6 @@ async function checkAlerts() {
 function init() {
   paintIcons();
   $('[data-bars]').innerHTML = '<span></span>'.repeat(32);
-  const chipBox = $('[data-chips]');
-  for (const c of CHIPS) {
-    const b = document.createElement('button');
-    b.className = 'chip';
-    b.textContent = c;
-    b.onclick = () => {
-      state.chips.has(c) ? state.chips.delete(c) : state.chips.add(c);
-      b.classList.toggle('on', state.chips.has(c));
-    };
-    chipBox.append(b);
-  }
 
   document.addEventListener('click', (e) => {
     const goEl = e.target.closest('[data-go]');
@@ -695,7 +764,7 @@ function init() {
       toast(navigator.onLine ? 'Sending…' : 'Still offline. It will send when you have signal.', 1800);
       return outbox.flush();
     }
-    if (act === 'relocate') locate({ fresh: true }).then(() => toast(state.loc.demo ? 'Location is off. Using a demo location.' : 'Location updated.'));
+    if (act === 'relocate') locate({ fresh: true }).then(() => { toast(state.loc.demo ? 'Location is off. Using a demo location.' : 'Location updated.'); checkSituation(); });
     if (act === 'cam-retake') camera.reset();
     if (act === 'cam-send') {
       if (!state.cam) return toast('Still preparing the file. Try again in a second.');
@@ -734,14 +803,12 @@ function init() {
   $('[data-transcript]').addEventListener('input', () => voice.setUI());
   for (const input of $$('[data-cam-input]')) input.addEventListener('change', () => camera.pick(input.dataset.camInput, input.files[0]));
 
-  fetch('/api/config').then((r) => r.json()).then((c) => {
-    $$('[data-app-name]').forEach((el) => (el.textContent = c.app_name));
-    document.title = `${c.app_name} · Report`;
-  }).catch(() => {});
-
   applyTheme(currentTheme());
-  locate().then(() => { checkAlerts(); checkNearby(); });
-  setInterval(() => { checkAlerts(); checkNearby(); }, 15000);
+  matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => applyTheme(currentTheme()));
+
+  fetch('/api/config').then((r) => r.json()).then(applyConfig).catch(() => {});
+  locate().then(checkSituation);
+  setInterval(checkSituation, 12000);
   window.addEventListener('online', () => outbox.flush());
   window.addEventListener('offline', renderOutbox);
   setInterval(() => outbox.flush(), 20000);

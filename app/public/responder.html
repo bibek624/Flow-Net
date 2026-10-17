@@ -3,9 +3,8 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Responder dashboard</title>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&display=swap" rel="stylesheet">
+<title>Flare · Responder</title>
+<link rel="icon" href="/icon.svg" type="image/svg+xml">
 <link rel="stylesheet" href="/vendor/leaflet/leaflet.css">
 <link rel="stylesheet" href="/responder.css">
 </head>
@@ -13,7 +12,9 @@
 <div class="shell">
   <header class="top">
     <div class="top-left">
-      <div class="logo"><span class="logo-mark"></span><span data-app-name>Beacon</span><span class="faint">Responder</span></div>
+      <div class="logo"><svg viewBox="0 0 32 32" aria-hidden="true"><path d="M16 2c1.2 7 5 10 5 15.5A5 5 0 0 1 16 22a5 5 0 0 1-5-4.5C11 12 14.8 9 16 2z" fill="var(--accent)"/><circle cx="16" cy="26.5" r="3" fill="var(--accent)" opacity=".55"/></svg><span data-app-name>Flare</span><span class="faint">Responder</span></div>
+      <select class="profile-select" data-profile-select aria-label="Deployment profile"></select>
+      <span class="org" data-org></span>
       <div class="live"><span class="live-dot"></span><span>Live · <span data-clock></span></span></div>
     </div>
     <div class="stats">
@@ -24,12 +25,22 @@
     </div>
     <div class="top-right">
       <span class="ai-badge" data-ai-badge></span>
-      <button class="ghost" data-action="replay" title="Send a new brush fire through the system, one report at a time">Replay demo</button>
-      <button class="ghost" data-action="reset" title="Clear everything and reload the demo incidents">Reset</button>
+      <button class="ghost" data-action="replay" title="Send a new incident through the system, one report at a time"><span data-icon="play" data-size="14"></span>Replay demo</button>
+      <button class="ghost" data-action="reset" title="Clear everything and reload the demo incidents"><span data-icon="reset" data-size="14"></span>Reset</button>
       <a class="ghost" href="/" target="_blank" rel="noopener">Resident app</a>
-      <button class="icon-btn" data-action="theme" aria-label="Toggle theme"><span data-icon="sun"></span></button>
+      <button class="icon-btn" data-action="theme" aria-label="Toggle theme"><span data-icon="sun" data-size="16"></span></button>
     </div>
   </header>
+
+  <div class="impact" data-impact>
+    <div class="kpi accent"><div class="kpi-label">Reports → incidents</div><div class="kpi-value"><span class="num" data-kpi="fold">—</span></div><div class="kpi-sub" data-kpi="fold-sub">Fewer items to triage</div></div>
+    <div class="kpi"><div class="kpi-label">Duplicates folded</div><div class="kpi-value"><span class="num" data-kpi="dups">—</span><small>calls not retaken</small></div><div class="kpi-sub" data-kpi="dups-sub"></div></div>
+    <div class="kpi"><div class="kpi-label">AI triage</div><div class="kpi-value"><span class="num" data-kpi="triage">—</span><small>median</small></div><div class="kpi-sub" data-kpi="triage-sub">Report to category</div></div>
+    <div class="kpi"><div class="kpi-label">Human review</div><div class="kpi-value"><span class="num" data-kpi="review">—</span><small>median</small></div><div class="kpi-sub" data-kpi="review-sub"></div></div>
+    <div class="kpi"><div class="kpi-label">Alert precision</div><div class="kpi-value"><span class="num" data-kpi="alert">—</span></div><div class="kpi-sub" data-kpi="alert-sub"></div></div>
+    <div class="kpi spark"><div class="kpi-label">Reports per minute · last hour</div><svg class="spark-svg" viewBox="0 0 180 28" preserveAspectRatio="none" data-spark></svg></div>
+  </div>
+  <div class="nws" data-nws hidden><span data-icon="wind" data-size="16"></span><b data-nws-event></b><span data-nws-text></span></div>
 
   <div class="body">
     <aside class="left">
@@ -78,7 +89,7 @@
         <div class="modal-title">Send targeted alert</div>
         <div class="faint" data-modal-sub></div>
       </div>
-      <button class="icon-btn" data-action="close-modal" aria-label="Close"><span data-icon="x"></span></button>
+      <button class="icon-btn" data-action="close-modal" aria-label="Close"><span data-icon="x" data-size="16"></span></button>
     </div>
     <div class="modal-body">
       <div class="modal-left">
@@ -88,8 +99,8 @@
           <span class="field-row"><span>Zone size</span><b data-zone-scale-label>100%</b></span>
           <input type="range" min="50" max="200" step="10" value="100" data-zone-scale>
         </label>
-        <div class="reach"><b data-residents>~0</b> <span>residents reached (estimate)</span></div>
-        <div class="faint small">Estimate uses area × average population density. Reaching only this area instead of the whole city.</div>
+        <div class="reach"><b class="num" data-residents>~0</b> <span>people reached (estimate)</span><span class="vs" data-reach-vs></span></div>
+        <div class="faint small">Estimate uses area × average population density. Only the people in this area, not the whole county.</div>
       </div>
       <div class="modal-right">
         <div class="field-label">Alert level</div>
@@ -98,9 +109,9 @@
           <span class="field-row"><span>Message</span><span class="faint small" data-msg-len>0 / 360</span></span>
           <textarea data-msg rows="5" maxlength="360"></textarea>
         </label>
-        <div class="field-label">Preview on residents' phones</div>
+        <div class="field-label">Preview on phones</div>
         <div class="phone-notif">
-          <div class="notif-app"><span class="logo-mark sm"></span><span data-app-name>Beacon</span> · Emergency alert<span class="faint"> now</span></div>
+          <div class="notif-app"><svg width="14" height="14" viewBox="0 0 32 32" aria-hidden="true"><path d="M16 2c1.2 7 5 10 5 15.5A5 5 0 0 1 16 22a5 5 0 0 1-5-4.5C11 12 14.8 9 16 2z" fill="var(--accent)"/></svg><span data-app-name>Flare</span> · Emergency alert<span class="faint"> now</span></div>
           <div class="notif-title" data-notif-title></div>
           <div class="notif-msg" data-notif-msg></div>
         </div>

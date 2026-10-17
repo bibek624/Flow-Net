@@ -3,14 +3,16 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="theme-color" content="#F4F5F7" media="(prefers-color-scheme: light)">
-<meta name="theme-color" content="#0B1220" media="(prefers-color-scheme: dark)">
+<meta name="theme-color" content="#F5F4F1" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0D0F13" media="(prefers-color-scheme: dark)">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
-<meta name="apple-mobile-web-app-title" content="Report">
+<meta name="apple-mobile-web-app-title" content="Flare">
 <link rel="manifest" href="/manifest.webmanifest">
 <link rel="apple-touch-icon" href="/icon.svg">
-<title>Report an incident</title>
+<link rel="icon" href="/icon.svg" type="image/svg+xml">
+<title>Flare · Report what you see</title>
+<link rel="stylesheet" href="/vendor/leaflet/leaflet.css">
 <link rel="stylesheet" href="/resident.css">
 <script>
   // Set the theme before first paint so the page never flashes the wrong colors.
@@ -18,51 +20,62 @@
 </script>
 </head>
 <body>
-<main id="app">
+<main id="app" data-threat="none">
 
   <!-- 01 Home -->
   <section class="screen" data-screen="home">
     <header class="topbar">
-      <div class="brand" data-app-name>Beacon</div>
+      <div class="wordmark"><svg class="glyph" viewBox="0 0 32 32" aria-hidden="true"><path d="M16 2c1.2 7 5 10 5 15.5A5 5 0 0 1 16 22a5 5 0 0 1-5-4.5C11 12 14.8 9 16 2z" fill="var(--accent)"/><circle cx="16" cy="26.5" r="3" fill="var(--accent)" opacity=".55"/></svg><span><span data-app-name>Flare</span><span class="org" data-org></span></span></div>
       <div class="topbar-right">
         <button class="round-sm" data-action="theme" aria-label="Change theme" title="Change theme"><span data-theme-icon></span></button>
-        <button class="pill" data-action="relocate"><span data-icon="pin" class="accent"></span><span data-loc-pill>Finding you…</span></button>
+        <button class="pill" data-action="relocate"><span data-icon="pin" data-size="16" class="accent"></span><span data-loc-pill>Finding you…</span></button>
       </div>
     </header>
+
     <div class="alert-banner" hidden data-alert>
       <div class="alert-level" data-alert-level></div>
       <div class="alert-title" data-alert-title></div>
       <div class="alert-msg" data-alert-msg></div>
     </div>
+
+    <div class="strip" data-strip data-level="none">
+      <div class="strip-head"><span class="live-dot small green" data-strip-dot><span class="pulse"></span><span class="core"></span></span><span class="strip-label" data-strip-label>Near you</span></div>
+      <div class="strip-title" data-strip-title>Checking what's nearby…</div>
+      <div class="strip-sub" data-strip-sub></div>
+      <div class="strip-row" data-strip-nws hidden><span data-icon="wind" data-size="16" class="accent"></span><span data-strip-nws-text></span></div>
+    </div>
+
+    <div class="minimap" data-minimap hidden><div class="minimap-cap">Live · within 5 mi</div><div id="minimap" style="height:100%"></div></div>
+
     <h1 class="big-title">What are you seeing?</h1>
     <div class="cards">
-      <button class="card" data-go="camera">
-        <span class="card-icon" data-icon="camera"></span>
-        <span class="card-text"><span class="card-title">Camera</span><span class="card-sub">Photo or video</span></span>
-        <span data-icon="chevron" class="muted"></span>
+      <button class="card primary" data-go="camera">
+        <span class="card-icon" data-icon="camera" data-size="34"></span>
+        <span class="card-text"><span class="card-title">Camera</span><span class="card-sub">Photo or video. The fastest way to be believed.</span></span>
+        <span class="caret" data-icon="caret" data-size="20"></span>
       </button>
       <button class="card" data-go="voice">
-        <span class="card-icon" data-icon="mic"></span>
-        <span class="card-text"><span class="card-title">Voice</span><span class="card-sub">Speak your report</span></span>
-        <span data-icon="chevron" class="muted"></span>
+        <span class="card-icon" data-icon="microphone" data-size="26"></span>
+        <span class="card-text"><span class="card-title">Voice</span><span class="card-sub">Just talk</span></span>
+        <span class="caret" data-icon="caret" data-size="18"></span>
       </button>
       <button class="card" data-go="text">
-        <span class="card-icon" data-icon="lines"></span>
-        <span class="card-text"><span class="card-title">Text</span><span class="card-sub">Type your report</span></span>
-        <span data-icon="chevron" class="muted"></span>
+        <span class="card-icon" data-icon="text" data-size="26"></span>
+        <span class="card-text"><span class="card-title">Text</span><span class="card-sub">One tap, one line</span></span>
+        <span class="caret" data-icon="caret" data-size="18"></span>
       </button>
     </div>
-    <button class="outbox" data-outbox hidden data-action="flush-outbox">
-      <span class="outbox-dot"></span><span data-outbox-text></span>
-    </button>
+
+    <button class="outbox" data-outbox hidden data-action="flush-outbox"><span class="outbox-dot"></span><span data-outbox-text></span></button>
+
     <div class="nearby" data-nearby hidden>
-      <div class="nearby-head"><span class="live-dot on small"><span class="pulse"></span><span class="core"></span></span>Active near you</div>
+      <div class="nearby-head">Active near you</div>
       <div data-nearby-list></div>
     </div>
     <p class="note" data-note>Every report helps confirm what's happening, so responders reach the people who need them first.</p>
     <div class="spacer"></div>
     <div class="bottom">
-      <button class="btn-help" data-go="help">I need help now</button>
+      <button class="btn-help" data-go="help"><span data-icon="siren" data-size="24"></span>I need help now</button>
     </div>
   </section>
 
@@ -70,12 +83,12 @@
   <section class="screen dark" data-screen="camera" hidden>
     <div class="cam-preview" data-cam-preview>
       <div class="cam-empty" data-cam-empty>
-        <span data-icon="camera" class="cam-empty-icon"></span>
+        <span data-icon="camera" data-size="40"></span>
         <div>Show responders what you see.</div>
       </div>
     </div>
     <header class="cam-top">
-      <button class="round glass" data-go="home" aria-label="Close"><span data-icon="close"></span></button>
+      <button class="round glass" data-go="home" aria-label="Close"><span data-icon="x" data-size="20"></span></button>
       <div class="cam-label" data-cam-label>Camera</div>
       <div style="width:44px"></div>
     </header>
@@ -96,7 +109,7 @@
       <input class="glass-input" placeholder="Add a caption (optional)" data-cam-caption maxlength="300">
       <div class="row">
         <button class="btn glass" data-action="cam-retake">Retake</button>
-        <button class="btn btn-cam-send" data-action="cam-send">Send</button>
+        <button class="btn btn-cam-send" data-action="cam-send"><span data-icon="send" data-size="20"></span>Send</button>
       </div>
     </div>
   </section>
@@ -104,18 +117,18 @@
   <!-- 03 Voice -->
   <section class="screen" data-screen="voice" hidden>
     <header class="navbar">
-      <button class="link" data-action="voice-cancel">Cancel</button>
+      <button class="link" data-action="voice-cancel"><span data-icon="back" data-size="18"></span>Cancel</button>
       <div class="nav-title">Voice</div>
       <div class="nav-side"></div>
     </header>
     <p class="lead">Say what you see and where.</p>
     <div class="voice-stage">
-      <div class="voice-time" data-voice-time>0:00</div>
+      <div class="voice-time num" data-voice-time>0:00</div>
       <div class="bars" data-bars></div>
       <div class="mic-wrap">
         <div class="mic-pulse" data-mic-pulse hidden></div>
         <button class="mic" data-action="voice-toggle" aria-label="Record">
-          <span data-icon="mic-lg" data-mic-icon></span>
+          <span data-icon="microphone" data-size="52" data-mic-icon></span>
           <span class="mic-stop" data-mic-stop hidden></span>
         </button>
       </div>
@@ -128,25 +141,25 @@
     <div class="spacer"></div>
     <div class="bottom row" data-voice-actions style="opacity:.35;pointer-events:none">
       <button class="btn soft" data-action="voice-redo">Redo</button>
-      <button class="btn primary grow" data-action="voice-send">Send</button>
+      <button class="btn primary grow" data-action="voice-send"><span data-icon="send" data-size="20"></span>Send</button>
     </div>
   </section>
 
   <!-- 04 Text -->
   <section class="screen" data-screen="text" hidden>
     <header class="navbar">
-      <button class="link" data-go="home">Cancel</button>
+      <button class="link" data-go="home"><span data-icon="back" data-size="18"></span>Cancel</button>
       <div class="nav-title">Text</div>
       <div class="nav-side"></div>
     </header>
     <div class="panel text-panel">
       <textarea data-text placeholder="What's happening and where?" rows="4" maxlength="2000"></textarea>
-      <div class="loc-line"><span data-icon="pin-sm" class="accent"></span><span data-loc-line>Finding your location…</span></div>
+      <div class="loc-line"><span data-icon="pin" data-size="15" class="accent"></span><span data-loc-line>Finding your location…</span></div>
     </div>
     <div class="spacer"></div>
     <div class="chips" data-chips></div>
     <div class="bottom tight">
-      <button class="btn primary" data-action="text-send">Send</button>
+      <button class="btn primary" data-action="text-send"><span data-icon="send" data-size="20"></span>Send</button>
     </div>
   </section>
 
@@ -159,7 +172,7 @@
     <div class="panel timeline" data-timeline>
       <div class="step" data-step="sent">
         <div class="dotcol"><span class="dot"></span><span class="line"></span></div>
-        <div class="step-body"><div class="step-row"><span class="step-title">Sent</span><span class="step-time" data-sent-time></span></div></div>
+        <div class="step-body"><div class="step-row"><span class="step-title">Sent</span><span class="step-time num" data-sent-time></span></div></div>
       </div>
       <div class="step" data-step="loc">
         <div class="dotcol"><span class="dot"></span><span class="line"></span></div>
@@ -181,24 +194,24 @@
     <div class="spacer"></div>
     <div class="section-label">Add more to this report</div>
     <div class="row pad">
-      <button class="btn card-btn" data-go="camera"><span data-icon="camera-sm"></span>Photo</button>
-      <button class="btn card-btn" data-go="voice"><span data-icon="mic-sm"></span>Voice</button>
-      <button class="btn card-btn" data-go="text"><span data-icon="lines-sm"></span>Text</button>
+      <button class="btn card-btn" data-go="camera"><span data-icon="camera" data-size="20"></span>Photo</button>
+      <button class="btn card-btn" data-go="voice"><span data-icon="microphone" data-size="20"></span>Voice</button>
+      <button class="btn card-btn" data-go="text"><span data-icon="text" data-size="20"></span>Text</button>
     </div>
     <button class="link center-link" data-go="home">Back to home</button>
   </section>
 
   <!-- 06 Help -->
   <section class="screen" data-screen="help" hidden>
-    <div class="pad-top"><button class="round soft" data-go="home" aria-label="Close"><span data-icon="close-dark"></span></button></div>
+    <div class="pad-top"><button class="round soft" data-go="home" aria-label="Close"><span data-icon="x" data-size="20"></span></button></div>
     <h1 class="big-title">Get help now</h1>
-    <div class="cards">
-      <a class="help-call" href="tel:911">
-        <span class="help-icon"><span data-icon="phone"></span></span>
-        <span class="card-text"><span class="help-title">Call 911</span><span class="help-sub">One tap to dial</span></span>
+    <div class="cards" style="grid-template-columns:1fr">
+      <a class="help-call" href="tel:911" data-call>
+        <span class="help-icon"><span data-icon="phone" data-size="28"></span></span>
+        <span class="card-text"><span class="help-title">Call <span data-emergency-number>911</span></span><span class="help-sub">One tap to dial</span></span>
       </a>
       <button class="help-connect" data-action="help-send">
-        <span class="help-icon light"><span data-icon="person" data-connect-icon></span></span>
+        <span class="help-icon light"><span data-icon="user" data-size="28" data-connect-icon></span></span>
         <span class="card-text"><span class="card-title" data-connect-title>Connect me to a person</span><span class="card-sub2" data-connect-sub>A responder sees you on the map</span></span>
       </button>
     </div>
@@ -220,6 +233,7 @@
 
   <div class="toast" data-toast hidden></div>
 </main>
+<script src="/vendor/leaflet/leaflet.js"></script>
 <script src="/resident.js" type="module"></script>
 </body>
 </html>

@@ -6,7 +6,7 @@
 import { EventEmitter } from 'node:events';
 import crypto from 'node:crypto';
 import { insert, update, get, all, logEvent } from './db.js';
-import { CATEGORIES } from './categories.js';
+import { category, sameEvent } from './categories.js';
 import { distanceM, centroid } from './geo.js';
 import { triageReport, summarizeIncident } from './triage.js';
 import { computeZone } from './zone.js';
@@ -31,15 +31,12 @@ export function incidentReports(id) {
 }
 
 function findIncident(report) {
-  const fam = CATEGORIES[report.category].family;
-  const candidates = all(
-    "SELECT * FROM incidents WHERE status = 'active' AND updated_at > ?",
-    report.created_at - MERGE_WINDOW_MS,
-  ).filter((i) => CATEGORIES[i.category].family === fam);
+  const candidates = all("SELECT * FROM incidents WHERE status = 'active' AND updated_at > ?", report.created_at - MERGE_WINDOW_MS)
+    .filter((i) => sameEvent(i.category, report.category));
   let best = null;
   for (const inc of candidates) {
     const d = distanceM([report.lat, report.lng], [inc.lat, inc.lng]);
-    const limit = Math.max(CATEGORIES[inc.category].mergeM, CATEGORIES[report.category].mergeM);
+    const limit = Math.max(category(inc.category).mergeM, category(report.category).mergeM);
     if (d <= limit && (!best || d < best.d)) best = { inc, d };
   }
   return best?.inc ?? null;
@@ -71,7 +68,7 @@ export function cluster(report, { place } = {}) {
       created_at: report.created_at,
       updated_at: report.created_at,
       category: report.category,
-      title: CATEGORIES[report.category].label,
+      title: category(report.category).label,
       place: place || report.address || '',
       lat: report.lat,
       lng: report.lng,
@@ -95,11 +92,11 @@ export function refreshIncidentStats(id) {
   // The incident takes the category most reports agree on; fire wins ties with smoke.
   const counts = {};
   for (const r of reports) counts[r.category] = (counts[r.category] || 0) + 1;
-  const category = Object.entries(counts).sort((a, b) => b[1] - a[1] || (a[0] === 'fire' ? -1 : 1))[0][0];
+  const cat = Object.entries(counts).sort((a, b) => b[1] - a[1] || (a[0] === 'fire' ? -1 : 1))[0][0];
   update('incidents', id, {
     lat,
     lng,
-    category,
+    category: cat,
     report_count: reports.length,
     severity: Math.max(...reports.map((r) => r.severity || 1)),
     updated_at: Math.max(...reports.map((r) => r.created_at)),
@@ -120,11 +117,17 @@ export function scheduleRefresh(incidentId, delayMs = 2500) {
   );
 }
 
+export function cancelRefreshes() {
+  for (const t of pending.values()) clearTimeout(t);
+  pending.clear();
+}
+
 export async function refreshSummaryAndZone(incidentId) {
   const inc = get('incidents', incidentId);
   if (!inc) return;
   const reports = incidentReports(incidentId);
   const [sum, zone] = await Promise.all([summarizeIncident(inc, reports), computeZone(inc, reports)]);
+  if (!get('incidents', incidentId)) return; // reset happened while we were working
   update('incidents', incidentId, {
     summary: sum.summary,
     summary_source: sum.source,
@@ -147,6 +150,8 @@ export async function ingest(report, { skipGeocode = false } = {}) {
       })
     : Promise.resolve();
   const [t] = await Promise.all([triageReport(report), geocode]);
+  if (!get('reports', report.id)) return null; // reset happened while we were working
+
   Object.assign(report, {
     category: t.category,
     severity: t.severity,
@@ -154,6 +159,7 @@ export async function ingest(report, { skipGeocode = false } = {}) {
     ai_summary: t.summary,
     triage_source: t.source,
     status: 'triaged',
+    triaged_at: Date.now(),
   });
   update('reports', report.id, {
     category: report.category,
@@ -162,6 +168,7 @@ export async function ingest(report, { skipGeocode = false } = {}) {
     ai_summary: report.ai_summary,
     triage_source: report.triage_source,
     status: 'triaged',
+    triaged_at: report.triaged_at,
   });
 
   const inc = cluster(report);

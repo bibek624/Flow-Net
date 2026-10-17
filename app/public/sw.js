@@ -1,7 +1,7 @@
 // Keeps the resident app opening when the network is weak or gone.
 // Pages and code: network first, cached copy as backup. API calls are never cached.
-const CACHE = 'resident-shell-v1';
-const SHELL = ['/', '/resident.css', '/resident.js', '/icon.svg', '/manifest.webmanifest'];
+const CACHE = 'resident-shell-v2';
+const SHELL = ['/', '/resident.css', '/resident.js', '/icons.js', '/icon.svg', '/manifest.webmanifest', '/vendor/leaflet/leaflet.css', '/vendor/leaflet/leaflet.js'];
 
 self.addEventListener('install', (e) => {
   e.waitUntil(caches.open(CACHE).then((c) => c.addAll(SHELL)).then(() => self.skipWaiting()));

@@ -9,6 +9,7 @@ export const db = new DatabaseSync(path.join(DATA_DIR, 'app.db'));
 db.exec('PRAGMA journal_mode = WAL;');
 
 db.exec(`
+CREATE TABLE IF NOT EXISTS settings (key TEXT PRIMARY KEY, value TEXT);
 CREATE TABLE IF NOT EXISTS reports (
   id TEXT PRIMARY KEY,
   created_at INTEGER NOT NULL,
@@ -65,6 +66,16 @@ CREATE INDEX IF NOT EXISTS reports_incident ON reports(incident_id);
 CREATE INDEX IF NOT EXISTS reports_created ON reports(created_at);
 `);
 
+// Columns added after the first release. Safe to run on an older database.
+function addColumn(table, col, type) {
+  const have = db.prepare(`PRAGMA table_info(${table})`).all().some((c) => c.name === col);
+  if (!have) db.exec(`ALTER TABLE ${table} ADD COLUMN ${col} ${type}`);
+}
+addColumn('reports', 'triaged_at', 'INTEGER');
+addColumn('reports', 'reviewed_at', 'INTEGER');
+addColumn('reports', 'help_assigned_at', 'INTEGER');
+addColumn('reports', 'help_resolved_at', 'INTEGER');
+
 const JSON_COLS = ['chips', 'flags', 'zone', 'polygon', 'channels'];
 
 export function parseRow(row) {
@@ -97,6 +108,14 @@ export function all(sql, ...params) {
 
 export function logEvent(incidentId, text, at = Date.now()) {
   db.prepare('INSERT INTO events (created_at, incident_id, text) VALUES (?, ?, ?)').run(at, incidentId, text);
+}
+
+export function getSetting(key) {
+  return db.prepare('SELECT value FROM settings WHERE key = ?').get(key)?.value ?? null;
+}
+
+export function setSetting(key, value) {
+  db.prepare('INSERT INTO settings (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value').run(key, value);
 }
 
 export function resetAll() {

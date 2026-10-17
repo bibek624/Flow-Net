@@ -1,0 +1,24 @@
+# One-click deploy: https://render.com/deploy?repo=https://github.com/bibek624/Flow-Net/tree/claude/incident-reporting-app-fk0k3w
+# Free plan. No persistent disk on free, so the demo data reloads after each restart, which is what a demo wants.
+services:
+  - type: web
+    name: flare
+    runtime: node
+    plan: free
+    rootDir: app
+    branch: claude/incident-reporting-app-fk0k3w
+    buildCommand: npm ci --omit=dev
+    startCommand: npm start
+    healthCheckPath: /api/config
+    autoDeploy: true
+    envVars:
+      - key: NODE_VERSION
+        value: 22.14.0
+      - key: APP_NAME
+        value: Flare
+      - key: PROFILE
+        value: city
+      - key: ANTHROPIC_API_KEY
+        sync: false
+      - key: GEOCODE_CONTACT
+        sync: false

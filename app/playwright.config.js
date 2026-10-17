@@ -51,6 +51,11 @@ export default defineConfig({
       use: { viewport: { width: 1600, height: 1000 } },
     },
     {
+      name: 'profiles',
+      testMatch: /profiles\.spec\.js/,
+      use: { viewport: { width: 1600, height: 1000 } },
+    },
+    {
       name: 'visual',
       testMatch: /visual\.spec\.js/,
       use: {

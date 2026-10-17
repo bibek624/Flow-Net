@@ -112,7 +112,7 @@ test.describe('Incident detail', () => {
     await expect(d).toBeVisible();
     await expect(d.locator('.d-title')).toHaveText('Wildfire smoke');
     await expect(d.locator('.ai-box p')).not.toBeEmpty();
-    await expect(d.locator('.zone-box')).toContainText(/residents/, { timeout: 8000 });
+    await expect(d.locator('.zone-box')).toContainText(/people/, { timeout: 8000 });
     await expect(d.locator('.voice-note').first()).toBeVisible();
     await expect(d.locator('.tl li').first()).toBeVisible();
   });
@@ -212,7 +212,7 @@ test.describe('Targeted alert', () => {
     const before = (await state(request)).alerts.length;
     await page.locator('[data-action="send-alert"]').click();
     await expect(page.locator('[data-modal]')).toBeHidden();
-    await expect(page.locator('[data-toast]')).toHaveText(/Alert sent to ~[\d,]+ residents/);
+    await expect(page.locator('[data-toast]')).toHaveText(/Alert sent to ~[\d,]+ people/);
     const s = await state(request);
     expect(s.alerts.length).toBe(before + 1);
     expect(s.alerts[0].level).toBe('Prepare to leave');

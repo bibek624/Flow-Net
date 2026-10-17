@@ -1,9 +1,17 @@
 {
-  "name": "Report an incident",
-  "short_name": "Report",
+  "name": "Flare",
+  "short_name": "Flare",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#F4F5F7",
-  "theme_color": "#F4F5F7",
-  "icons": [{ "src": "/icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" }]
+  "background_color": "#F5F4F1",
+  "theme_color": "#F5F4F1",
+  "icons": [
+    {
+      "src": "/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    }
+  ],
+  "description": "Report what you see. Responders see it in seconds."
 }
