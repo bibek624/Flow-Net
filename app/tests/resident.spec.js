@@ -39,7 +39,7 @@ test.describe('Home', () => {
 
   test('uses a labeled demo location when location is blocked', async ({ browser, baseURL }) => {
     const ctx = await browser.newContext({ baseURL, viewport: { width: 390, height: 844 }, permissions: [] });
-    await ctx.route(/(cartocdn|googleapis|gstatic|open-meteo|nominatim)/, (r) => r.abort());
+    await ctx.route(/(arcgisonline|openstreetmap\.org|cartocdn|googleapis|gstatic|open-meteo|nominatim|weather\.gov)/, (r) => r.abort());
     const page = await ctx.newPage();
     await page.goto('/');
     await expect(page.locator('[data-loc-pill]')).toHaveText('Demo location', { timeout: 12000 });

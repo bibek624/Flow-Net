@@ -18,7 +18,7 @@ for (const theme of ['light', 'dark']) {
       baseURL, viewport: { width: 390, height: 844 }, deviceScaleFactor: 2, isMobile: true, colorScheme: theme, timezoneId: 'America/Los_Angeles',
       permissions: ['geolocation', 'microphone'], geolocation: { latitude: 34.1187, longitude: -118.2902, accuracy: 12 },
     });
-    await ctx.route(/(cartocdn|googleapis|gstatic|open-meteo|nominatim)/, (r) => r.abort());
+    await ctx.route(/(arcgisonline|openstreetmap\.org|cartocdn|googleapis|gstatic|open-meteo|nominatim|weather\.gov)/, (r) => r.abort());
     const page = await ctx.newPage();
     const shot = (name) => page.screenshot({ animations: 'disabled', path: `${OUT}/${theme}-resident-${name}.png` });
     await page.goto('/');
@@ -51,7 +51,7 @@ for (const theme of ['light', 'dark']) {
 
   test(`dashboard, ${theme}`, async ({ browser, baseURL }) => {
     const ctx = await browser.newContext({ baseURL, viewport: { width: 1440, height: 900 }, timezoneId: 'America/Los_Angeles' });
-    await ctx.route(/(cartocdn|googleapis|gstatic|open-meteo|nominatim)/, (r) => r.abort());
+    await ctx.route(/(arcgisonline|openstreetmap\.org|cartocdn|googleapis|gstatic|open-meteo|nominatim|weather\.gov)/, (r) => r.abort());
     await ctx.addInitScript((t) => localStorage.setItem('responder-theme', t), theme);
     const page = await ctx.newPage();
     await page.goto('/responder');

@@ -221,3 +221,6 @@ svg { display: block; }
   #alertmap { height: 240px; }
   .impact { padding: 8px 12px; }
 }
+
+/* OpenStreetMap fallback tiles in dark theme */
+.tiles-dark { filter: invert(1) hue-rotate(180deg) brightness(.9) contrast(.9) saturate(.4); }

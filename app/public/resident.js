@@ -1,5 +1,6 @@
 // Flare resident app. Plain JS, no build step.
 import { icon, paintIcons } from '/icons.js';
+import { addBasemap } from '/tiles.js';
 
 const $ = (sel, root = document) => root.querySelector(sel);
 const $$ = (sel, root = document) => [...root.querySelectorAll(sel)];
@@ -668,7 +669,7 @@ const minimap = {
     if (this.map || !window.L || !state.loc) return;
     this.map = L.map('minimap', { zoomControl: false, attributionControl: true, dragging: false, scrollWheelZoom: false, doubleClickZoom: false, touchZoom: false, boxZoom: false, keyboard: false, tap: false });
     const dark = matchMedia('(prefers-color-scheme: dark)').matches && document.documentElement.dataset.theme !== 'light' || document.documentElement.dataset.theme === 'dark';
-    this.tiles = L.tileLayer(`https://{s}.basemaps.cartocdn.com/${dark ? 'dark_all' : 'light_all'}/{z}/{x}/{y}{r}.png`, { subdomains: 'abcd', maxZoom: 19, attribution: '&copy; OpenStreetMap &copy; CARTO' }).addTo(this.map);
+    this.tiles = addBasemap(this.map, dark ? 'dark' : 'light');
     this.layer = L.layerGroup().addTo(this.map);
     this.you = L.marker([state.loc.lat, state.loc.lng], { icon: L.divIcon({ className: '', html: '<div class="minimap-you"></div>', iconSize: [16, 16] }), interactive: false }).addTo(this.map);
   },

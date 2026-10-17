@@ -282,3 +282,6 @@ textarea::placeholder, input::placeholder { color: var(--ink3); }
   .card.primary { min-height: 92px; }
   .near-row { padding: 8px 0; }
 }
+
+/* OpenStreetMap fallback tiles in dark theme */
+.tiles-dark { filter: invert(1) hue-rotate(180deg) brightness(.9) contrast(.9) saturate(.4); }

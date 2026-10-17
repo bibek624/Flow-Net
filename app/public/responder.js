@@ -1,6 +1,7 @@
 // Flare responder dashboard: live map, urgent queue, incident list, detail
 // panel, impact numbers, and the alert preview that waits for a person to approve.
 import { icon, paintIcons } from '/icons.js';
+import { addBasemap } from '/tiles.js';
 
 const $ = (sel, root = document) => root.querySelector(sel);
 const $$ = (sel, root = document) => [...root.querySelectorAll(sel)];
@@ -83,11 +84,9 @@ const residentsFor = (poly) => Math.max(100, Math.round((areaM2(poly) / 1e6) * (
 
 // ---------- Map ----------
 
-const TILE = (theme) => `https://{s}.basemaps.cartocdn.com/${theme === 'dark' ? 'dark_all' : 'light_all'}/{z}/{x}/{y}{r}.png`;
-const ATTR = '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> &copy; <a href="https://carto.com/attributions">CARTO</a>';
 
-const map = L.map('map', { zoomControl: true, attributionControl: true }).setView([34.06, -118.3], 11);
-const tiles = L.tileLayer(TILE('dark'), { attribution: ATTR, subdomains: 'abcd', maxZoom: 19 }).addTo(map);
+const map = L.map('map', { zoomControl: true, attributionControl: true, maxZoom: 16 }).setView([34.06, -118.3], 11);
+let tiles = addBasemap(map, 'dark');
 const groups = { zones: L.layerGroup().addTo(map), reports: L.layerGroup().addTo(map), incidents: L.layerGroup().addTo(map), urgent: L.layerGroup().addTo(map) };
 
 const cssVar = (name) => getComputedStyle(document.documentElement).getPropertyValue(name).trim();
@@ -263,7 +262,7 @@ async function select(id) {
   drawMap();
   await loadDetail();
   const inc = state.detail;
-  if (inc) map.flyTo([inc.lat, inc.lng], Math.max(map.getZoom(), 14), { duration: 0.6 });
+  if (inc) map.flyTo([inc.lat, inc.lng], Math.min(16, Math.max(map.getZoom(), 14)), { duration: 0.6 });
 }
 
 async function loadDetail() {
@@ -365,8 +364,8 @@ function openAlert() {
   $('[data-modal]').hidden = false;
   setLevel(modal.level);
   if (!modal.map) {
-    modal.map = L.map('alertmap', { zoomControl: false, attributionControl: true });
-    modal.tiles = L.tileLayer(TILE(state.theme), { attribution: ATTR, subdomains: 'abcd' }).addTo(modal.map);
+    modal.map = L.map('alertmap', { zoomControl: false, attributionControl: true, maxZoom: 16 });
+    modal.tiles = addBasemap(modal.map, state.theme);
   }
   setTimeout(() => {
     modal.map.invalidateSize();
@@ -496,8 +495,12 @@ function setTheme(theme) {
   state.theme = theme;
   document.documentElement.dataset.theme = theme;
   $('[data-action="theme"]').innerHTML = icon(theme === 'dark' ? 'sun' : 'moon', 16);
-  tiles.setUrl(TILE(theme));
-  modal.tiles?.setUrl(TILE(theme));
+  tiles.remove();
+  tiles = addBasemap(map, theme);
+  if (modal.map) {
+    modal.tiles.remove();
+    modal.tiles = addBasemap(modal.map, theme);
+  }
   try { localStorage.setItem('responder-theme', theme); } catch {}
   drawMap();
 }

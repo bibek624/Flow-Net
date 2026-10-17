@@ -1,7 +1,7 @@
 import { test as base, expect } from '@playwright/test';
 
 // Outside services the sandbox and venue Wi-Fi may block. The app must work without them.
-const EXTERNAL = /(basemaps\.cartocdn\.com|fonts\.googleapis\.com|fonts\.gstatic\.com|open-meteo\.com|nominatim\.openstreetmap\.org)/;
+const EXTERNAL = /(server\.arcgisonline\.com|tile\.openstreetmap\.org|api\.weather\.gov|basemaps\.cartocdn\.com|fonts\.googleapis\.com|fonts\.gstatic\.com|open-meteo\.com|nominatim\.openstreetmap\.org)/;
 
 export const test = base.extend({
   // Every test fails if the page throws or logs an error.
