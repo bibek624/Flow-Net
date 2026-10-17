@@ -6,7 +6,7 @@
 <title>Responder dashboard</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<link rel="stylesheet" href="/vendor/leaflet/leaflet.css">
 <link rel="stylesheet" href="/responder.css">
 </head>
 <body>
@@ -24,9 +24,9 @@
     </div>
     <div class="top-right">
       <span class="ai-badge" data-ai-badge></span>
-      <button class="ghost" data-action="replay" title="Send a new brush fire through the system, one report at a time">Replay live demo</button>
+      <button class="ghost" data-action="replay" title="Send a new brush fire through the system, one report at a time">Replay demo</button>
       <button class="ghost" data-action="reset" title="Clear everything and reload the demo incidents">Reset</button>
-      <a class="ghost" href="/" target="_blank" rel="noopener">Open resident app</a>
+      <a class="ghost" href="/" target="_blank" rel="noopener">Resident app</a>
       <button class="icon-btn" data-action="theme" aria-label="Toggle theme"><span data-icon="sun"></span></button>
     </div>
   </header>
@@ -122,7 +122,7 @@
 
 <div class="toast" data-toast hidden></div>
 
-<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="/vendor/leaflet/leaflet.js"></script>
 <script src="/responder.js" type="module"></script>
 </body>
 </html>

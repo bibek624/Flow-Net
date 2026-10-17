@@ -47,6 +47,7 @@ const state = {
   layers: { reports: true, incidents: true, urgent: true, zones: true },
   theme: 'dark',
   fitted: false,
+  flash: new Set(),
 };
 
 // ---------- Helpers ----------
@@ -243,7 +244,7 @@ function renderIncidents() {
   box.innerHTML = list
     .map((i) => {
       const c = CONF[i.confidence];
-      return `<div class="inc${i.id === state.selected ? ' sel' : ''}" data-inc="${i.id}">
+      return `<div class="inc${i.id === state.selected ? ' sel' : ''}${state.flash.has(i.id) ? ' flash' : ''}" data-inc="${i.id}">
         <div class="cat-icon" style="color:${catColor(i.category)};background:${soft(catColor(i.category))}">${icon(i.category)}</div>
         <div class="inc-main">
           <div class="inc-top"><span class="inc-title">${esc(i.title)}</span><span class="conf" style="color:${c.c};background:${c.bg}">${i.confidence}</span></div>
@@ -482,9 +483,24 @@ const scheduleRefresh = () => {
   refreshTimer = setTimeout(refresh, 250);
 };
 
+// New reports briefly light up their incident so the eye catches the change.
+function flashIncident(id) {
+  state.flash.add(id);
+  setTimeout(() => {
+    state.flash.delete(id);
+    $(`.inc[data-inc="${id}"]`)?.classList.remove('flash');
+  }, 2600);
+}
+
 function connectStream() {
   const es = new EventSource('/api/stream');
-  es.onmessage = scheduleRefresh;
+  es.onmessage = (e) => {
+    try {
+      const evt = JSON.parse(e.data);
+      if (evt.type === 'report' && evt.incident_id) flashIncident(evt.incident_id);
+    } catch {}
+    scheduleRefresh();
+  };
   es.onerror = () => {}; // EventSource reconnects on its own
 }
 
@@ -522,6 +538,12 @@ function init() {
   $('[data-conf-filter]').addEventListener('change', (e) => { state.filters.conf = Number(e.target.value); renderIncidents(); drawMap(); });
   $('[data-zone-scale]').addEventListener('input', (e) => { modal.scale = Number(e.target.value) / 100; drawAlertZone(); });
   $('[data-msg]').addEventListener('input', updatePreview);
+  document.addEventListener('keydown', (e) => {
+    if (e.key !== 'Escape') return;
+    if (!$('[data-modal]').hidden) $('[data-modal]').hidden = true;
+    else if (state.selected) closeDetail();
+  });
+  $('[data-modal]').addEventListener('click', (e) => { if (e.target === e.currentTarget) e.currentTarget.hidden = true; });
 
   document.addEventListener('click', async (e) => {
     const t = e.target;

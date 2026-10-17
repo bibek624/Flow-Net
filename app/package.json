@@ -5,11 +5,14 @@
   "main": "server.js",
   "scripts": {
     "start": "node --disable-warning=ExperimentalWarning server.js",
-    "dev": "node --disable-warning=ExperimentalWarning --watch server.js"
+    "dev": "node --disable-warning=ExperimentalWarning --watch server.js",
+    "test": "playwright test",
+    "test:report": "playwright show-report test-report"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.135.0",
     "express": "^4.22.3",
+    "leaflet": "^1.9.4",
     "multer": "^2.4.0",
     "zod": "^4.6.7"
   },
@@ -17,5 +20,8 @@
   "private": true,
   "engines": {
     "node": ">=22.13"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.56.1"
   }
 }

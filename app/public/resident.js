@@ -18,6 +18,9 @@ const ICONS = {
   'close-dark': '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg>',
   phone: '<svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M5 4h3.5l2 5-2.5 1.5a11 11 0 0 0 5.5 5.5l1.5-2.5 5 2V19a1 1 0 0 1-1 1A16 16 0 0 1 4 5a1 1 0 0 1 1-1z"/></svg>',
   person: '<svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M4.5 20.5a7.5 7.5 0 0 1 15 0"/></svg>',
+  sun: '<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg>',
+  moon: '<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 14.5A8 8 0 1 1 9.5 4a6.5 6.5 0 0 0 10.5 10.5z"/></svg>',
+  auto: '<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="8.5"/><path d="M12 3.5v17a8.5 8.5 0 0 0 0-17z" fill="currentColor" stroke="none"/></svg>',
   message: '<svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M4 5h16v11H9.5L4 20z"/></svg>',
 };
 const icon = (name) => ICONS[name] || '';
@@ -45,7 +48,11 @@ const state = {
 function go(screen) {
   if (state.screen === 'voice' && screen !== 'voice') voice.reset();
   state.screen = screen;
-  for (const s of $$('[data-screen]')) s.hidden = s.dataset.screen !== screen;
+  for (const s of $$('[data-screen]')) {
+    const on = s.dataset.screen === screen;
+    s.hidden = !on;
+    s.classList.toggle('enter', on);
+  }
   window.scrollTo(0, 0);
   if (screen === 'camera') camera.reset();
   if (screen === 'text') setTimeout(() => $('[data-text]').focus(), 50);
@@ -114,36 +121,133 @@ async function lookupAddress() {
 
 // ---------- Sending ----------
 
-async function sendReport(fields, files = {}) {
+// A report is plain fields plus optional files. Location is captured when the
+// person taps Send, so a report saved offline still says where it came from.
+async function buildPayload(fields, files = {}) {
   const loc = await locate();
+  const out = { fields: { ...fields, lat: loc.lat, lng: loc.lng, accuracy: loc.accuracy, address: state.address }, files: {} };
+  for (const [k, f] of Object.entries(files)) if (f) out.files[k] = { blob: f, name: f.name || k };
+  return out;
+}
+
+class HttpError extends Error {
+  constructor(message, status) { super(message); this.status = status; }
+}
+
+async function post(payload) {
   const fd = new FormData();
-  for (const [k, v] of Object.entries(fields)) if (v !== undefined && v !== null && v !== '') fd.append(k, Array.isArray(v) ? JSON.stringify(v) : v);
-  fd.append('lat', loc.lat);
-  fd.append('lng', loc.lng);
-  fd.append('accuracy', loc.accuracy);
-  if (state.address) fd.append('address', state.address);
-  for (const [k, file] of Object.entries(files)) if (file) fd.append(k, file, file.name || k);
+  for (const [k, v] of Object.entries(payload.fields)) if (v !== undefined && v !== null && v !== '') fd.append(k, Array.isArray(v) ? JSON.stringify(v) : v);
+  for (const [k, f] of Object.entries(payload.files)) fd.append(k, f.blob, f.name);
   const res = await fetch('/api/reports', { method: 'POST', body: fd });
-  if (!res.ok) throw new Error((await res.json().catch(() => ({}))).error || `Upload failed (${res.status})`);
+  if (!res.ok) throw new HttpError((await res.json().catch(() => ({}))).error || `Upload failed (${res.status})`, res.status);
   return (await res.json()).id;
 }
+
+const sendReport = async (fields, files) => post(await buildPayload(fields, files));
+
+// No signal or server down: keep the report and send it later. A 4xx means the
+// report itself is wrong, so retrying would not help.
+const retryable = (err) => !(err instanceof HttpError) || err.status >= 500;
 
 async function submit(button, fields, files) {
   button.disabled = true;
   const label = button.textContent;
   button.textContent = 'Sending…';
+  let payload;
   try {
-    const id = await sendReport(fields, files);
+    payload = await buildPayload(fields, files);
+    const id = await post(payload);
+    navigator.vibrate?.(30);
     sent.start(id);
     go('sent');
     return true;
   } catch (err) {
+    if (payload && retryable(err)) {
+      const localId = await outbox.add(payload);
+      sent.queued(localId);
+      go('sent');
+      return true;
+    }
     toast(`${err.message}. Check your connection and tap Send again.`);
     return false;
   } finally {
     button.disabled = false;
     button.textContent = label;
   }
+}
+
+// ---------- Outbox: reports saved on the phone until they can be sent ----------
+
+const outbox = {
+  db: null,
+  memory: new Map(), // used when IndexedDB is unavailable (private mode)
+  open() {
+    if (this.db) return Promise.resolve(this.db);
+    return new Promise((resolve) => {
+      try {
+        const req = indexedDB.open('resident-outbox', 1);
+        req.onupgradeneeded = () => req.result.createObjectStore('reports', { keyPath: 'localId' });
+        req.onsuccess = () => resolve((this.db = req.result));
+        req.onerror = () => resolve(null);
+      } catch {
+        resolve(null);
+      }
+    });
+  },
+  async tx(mode, fn) {
+    const db = await this.open();
+    if (!db) return fn(null);
+    return new Promise((resolve) => {
+      const t = db.transaction('reports', mode);
+      const store = t.objectStore('reports');
+      const out = fn(store);
+      t.oncomplete = () => resolve(out?.result ?? out);
+      t.onerror = () => resolve(null);
+    });
+  },
+  async add(payload) {
+    const entry = { localId: `local_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`, savedAt: Date.now(), payload };
+    const ok = await this.tx('readwrite', (store) => (store ? store.put(entry) : this.memory.set(entry.localId, entry)));
+    if (ok === null) this.memory.set(entry.localId, entry);
+    renderOutbox();
+    return entry.localId;
+  },
+  async list() {
+    const stored = (await this.tx('readonly', (store) => (store ? store.getAll() : null))) || [];
+    return [...stored, ...this.memory.values()].sort((a, b) => a.savedAt - b.savedAt);
+  },
+  async remove(localId) {
+    this.memory.delete(localId);
+    await this.tx('readwrite', (store) => store?.delete(localId));
+  },
+  flushing: false,
+  async flush() {
+    if (this.flushing) return;
+    this.flushing = true;
+    try {
+      for (const entry of await this.list()) {
+        try {
+          const id = await post(entry.payload);
+          await this.remove(entry.localId);
+          if (state.pendingLocalId === entry.localId && state.screen === 'sent') sent.start(id);
+          toast('Saved report sent.');
+        } catch (err) {
+          if (retryable(err)) break; // still offline, try again later
+          await this.remove(entry.localId); // the server will never accept this one
+        }
+      }
+    } finally {
+      this.flushing = false;
+      renderOutbox();
+    }
+  },
+};
+
+async function renderOutbox() {
+  const n = (await outbox.list()).length;
+  const el = $('[data-outbox]');
+  el.hidden = n === 0;
+  $('[data-outbox-text]').textContent = `${n} report${n === 1 ? '' : 's'} saved on this phone. ${navigator.onLine ? 'Tap to send now.' : 'Will send when you have signal.'}`;
 }
 
 // ---------- Camera ----------
@@ -346,7 +450,13 @@ const voice = {
   },
 
   reset() {
+    // Throw away a recording in progress: its late "stopped" event must not bring it back.
+    if (this.recorder) {
+      this.recorder.onstop = null;
+      this.recorder.ondataavailable = null;
+    }
     this.stop();
+    this.recorder = null;
     this.blob = null;
     this.finalText = '';
     $('[data-transcript]').value = '';
@@ -361,15 +471,36 @@ const fmt = (t) => `${Math.floor(t / 60)}:${String(Math.floor(t % 60)).padStart(
 
 const sent = {
   poll: null,
+  queued(localId) {
+    state.pendingLocalId = localId;
+    clearInterval(this.poll);
+    $('[data-sent-title]').textContent = 'Saved on your phone.';
+    $('[data-sent-lead]').textContent = "No signal right now. It sends by itself as soon as you're back online. If you are in danger, call 911.";
+    const steps = Object.fromEntries($$('[data-step]').map((s) => [s.dataset.step, s]));
+    for (const s of Object.values(steps)) s.className = 'step';
+    steps.sent.classList.add('active');
+    $('[data-sent-time]').textContent = 'Waiting for signal';
+    $('[data-sent-loc]').textContent = state.address || (state.loc ? `${state.loc.lat.toFixed(4)}, ${state.loc.lng.toFixed(4)}` : '');
+    steps.loc.classList.add('done');
+    $('[data-sent-type]').hidden = true;
+    $('[data-sent-type-wait]').hidden = false;
+    $('[data-sent-type-wait]').textContent = 'After it sends';
+    $('[data-sent-nearby]').textContent = 'Matching with nearby reports';
+    $('[data-sent-nearby-sub]').textContent = '';
+    $('[data-sent-review]').textContent = 'After it sends';
+  },
   start(id) {
     state.lastReportId = id;
+    state.pendingLocalId = null;
     clearInterval(this.poll);
+    $('[data-sent-title]').textContent = 'Got it.';
+    $('[data-sent-lead]').textContent = 'Your report is helping confirm this.';
     const steps = Object.fromEntries($$('[data-step]').map((s) => [s.dataset.step, s]));
     for (const s of Object.values(steps)) s.className = 'step';
     steps.sent.classList.add('done');
     $('[data-sent-time]').textContent = new Date().toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
     $('[data-sent-loc]').textContent = `${state.address || `${state.loc.lat.toFixed(4)}, ${state.loc.lng.toFixed(4)}`}${state.loc.demo ? ' (demo)' : ` · ${accText()}`}`;
-    setTimeout(() => steps.loc.classList.add('done'), 500);
+    steps.loc.classList.add('done');
     steps.type.classList.add('active');
     $('[data-sent-type]').hidden = true;
     $('[data-sent-type-wait]').hidden = false;
@@ -469,10 +600,50 @@ async function sendHelp(button) {
     check();
     helpPoll.t = setInterval(check, 3000);
   } catch (err) {
-    toast(`${err.message}. Call 911 if you can.`);
+    toast(retryable(err) ? 'No connection. Call 911 now if you can. Your request was not sent.' : `${err.message}. Call 911 if you can.`);
   } finally {
     button.disabled = false;
   }
+}
+
+// ---------- Near you ----------
+
+const CAT_COLOR = { fire: 'oklch(0.66 0.17 45)', smoke: 'oklch(0.62 0.13 305)', flood: 'oklch(0.6 0.14 245)', power: 'oklch(0.7 0.14 100)', gas: 'oklch(0.62 0.13 145)', road: 'oklch(0.6 0.03 255)', other: 'oklch(0.6 0.02 255)' };
+const distText = (m) => (m < 1000 ? `${Math.round(m / 10) * 10} m` : `${(m / 1609.34).toFixed(1)} mi`);
+
+async function checkNearby() {
+  if (!state.loc) return;
+  try {
+    const { incidents } = await (await fetch(`/api/nearby?lat=${state.loc.lat}&lng=${state.loc.lng}&radius_km=8`)).json();
+    const box = $('[data-nearby]');
+    box.hidden = incidents.length === 0;
+    $('[data-note]').hidden = incidents.length > 0;
+    $('[data-nearby-list]').innerHTML = incidents
+      .slice(0, 3)
+      .map((i) => `<div class="near-row"><span class="near-icon" style="background:${CAT_COLOR[i.category] || CAT_COLOR.other}"></span>
+        <div class="near-main"><div class="near-title">${escapeHtml(i.title)}${i.in_zone ? '<span class="near-zone">You are in the area</span>' : ''}</div>
+        <div class="near-sub">${i.report_count} report${i.report_count === 1 ? '' : 's'} · ${i.confidence}</div></div>
+        <div class="near-dist">${distText(i.distance_m)}</div></div>`)
+      .join('');
+  } catch {}
+}
+
+const escapeHtml = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
+
+// ---------- Theme: system, light, or dark ----------
+
+function currentTheme() {
+  try { return localStorage.getItem('resident-theme') || 'system'; } catch { return 'system'; }
+}
+
+function applyTheme(theme) {
+  if (theme === 'system') delete document.documentElement.dataset.theme;
+  else document.documentElement.dataset.theme = theme;
+  try { theme === 'system' ? localStorage.removeItem('resident-theme') : localStorage.setItem('resident-theme', theme); } catch {}
+  $('[data-theme-icon]').innerHTML = icon(theme === 'light' ? 'sun' : theme === 'dark' ? 'moon' : 'auto');
+  $('[data-action="theme"]').setAttribute('aria-label', `Theme: ${theme}. Tap to change.`);
+  const dark = theme === 'dark' || (theme === 'system' && matchMedia('(prefers-color-scheme: dark)').matches);
+  for (const m of $$('meta[name="theme-color"]')) m.setAttribute('content', dark ? '#0B1220' : '#F4F5F7');
 }
 
 // ---------- Alerts for this location ----------
@@ -515,6 +686,15 @@ function init() {
     const act = e.target.closest('[data-action]')?.dataset.action;
     if (!act) return;
     const btn = e.target.closest('[data-action]');
+    if (act === 'theme') {
+      const next = { system: 'light', light: 'dark', dark: 'system' }[currentTheme()];
+      applyTheme(next);
+      return toast(next === 'system' ? 'Theme follows your phone' : `${next[0].toUpperCase()}${next.slice(1)} theme`, 1400);
+    }
+    if (act === 'flush-outbox') {
+      toast(navigator.onLine ? 'Sending…' : 'Still offline. It will send when you have signal.', 1800);
+      return outbox.flush();
+    }
     if (act === 'relocate') locate({ fresh: true }).then(() => toast(state.loc.demo ? 'Location is off. Using a demo location.' : 'Location updated.'));
     if (act === 'cam-retake') camera.reset();
     if (act === 'cam-send') {
@@ -559,8 +739,14 @@ function init() {
     document.title = `${c.app_name} · Report`;
   }).catch(() => {});
 
-  locate().then(checkAlerts);
-  setInterval(checkAlerts, 15000);
+  applyTheme(currentTheme());
+  locate().then(() => { checkAlerts(); checkNearby(); });
+  setInterval(() => { checkAlerts(); checkNearby(); }, 15000);
+  window.addEventListener('online', () => outbox.flush());
+  window.addEventListener('offline', renderOutbox);
+  setInterval(() => outbox.flush(), 20000);
+  renderOutbox().then(() => outbox.flush());
+  if ('serviceWorker' in navigator && location.protocol === 'https:') navigator.serviceWorker.register('/sw.js').catch(() => {});
   voice.setUI();
 }
 

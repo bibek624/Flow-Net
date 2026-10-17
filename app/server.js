@@ -4,7 +4,7 @@ import path from 'node:path';
 import fs from 'node:fs';
 import { all, get, update, insert, logEvent, resetAll } from './lib/db.js';
 import { bus, ingest, newId, confidenceOf, incidentReports, refreshSummaryAndZone } from './lib/pipeline.js';
-import { pointInPolygon } from './lib/geo.js';
+import { pointInPolygon, distanceM } from './lib/geo.js';
 import { reverseGeocode } from './lib/external.js';
 import { aiEnabled } from './lib/triage.js';
 import { POP_DENSITY_PER_KM2 } from './lib/zone.js';
@@ -17,7 +17,14 @@ fs.mkdirSync(UPLOAD_DIR, { recursive: true });
 
 const app = express();
 app.use(express.json({ limit: '1mb' }));
-app.use(express.static(path.resolve('public'), { extensions: ['html'] }));
+// HTML, JS, and CSS always revalidate so a fix reaches every phone on the next load.
+app.use(express.static(path.resolve('public'), {
+  extensions: ['html'],
+  setHeaders: (res, file) => {
+    if (/\.(html|js|css|webmanifest)$/.test(file)) res.set('Cache-Control', 'no-cache');
+  },
+}));
+app.use('/vendor/leaflet', express.static(path.resolve('node_modules/leaflet/dist'), { maxAge: '7d' }));
 app.use('/uploads', express.static(UPLOAD_DIR, { maxAge: '1h' }));
 
 const EXT = {
@@ -140,6 +147,30 @@ app.get('/api/alerts/active', (req, res) => {
     (a) => lat == null || lng == null || (a.polygon && pointInPolygon([lat, lng], a.polygon)),
   );
   res.json({ alerts: alerts.map(({ id, created_at, level, title, message }) => ({ id, created_at, level, title, message })) });
+});
+
+app.get('/api/nearby', (req, res) => {
+  const lat = num(req.query.lat);
+  const lng = num(req.query.lng);
+  if (lat == null || lng == null) return res.status(400).json({ error: 'lat and lng required' });
+  const radius = Math.min(20000, (num(req.query.radius_km) ?? 5) * 1000);
+  const incidents = all("SELECT * FROM incidents WHERE status = 'active'")
+    .map((inc) => ({ inc, d: distanceM([lat, lng], [inc.lat, inc.lng]) }))
+    .filter(({ d }) => d <= radius)
+    .sort((a, b) => a.d - b.d)
+    .slice(0, 5)
+    .map(({ inc, d }) => ({
+      id: inc.id,
+      title: inc.title,
+      category: inc.category,
+      place: inc.place,
+      report_count: inc.report_count,
+      confidence: confidenceOf(inc, incidentReports(inc.id)),
+      distance_m: Math.round(d),
+      in_zone: Boolean(inc.zone?.polygon && pointInPolygon([lat, lng], inc.zone.polygon)),
+      latest_at: inc.updated_at,
+    }));
+  res.json({ incidents });
 });
 
 app.get('/api/geocode', async (req, res) => {

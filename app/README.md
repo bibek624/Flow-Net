@@ -37,11 +37,21 @@ iPhones only allow camera, microphone, and location on HTTPS pages. Two options:
 ## Demo script
 
 1. Open the dashboard. Six incidents are already active, with three people waiting for urgent help.
-2. Click **Replay live demo**. A new brush fire near Baldwin Hills comes in, one report every four seconds. Watch the reports group into one incident and the summary update.
+2. Click **Replay demo**. A new brush fire near Baldwin Hills comes in, one report every four seconds. Watch the reports group into one incident and the summary update.
 3. On a phone, open the resident app and send a report. It shows up on the map within a second or two. The phone shows each step: sent, location attached, identified as, how many others reported it nearby.
 4. In the dashboard, open the wildfire, click **Send targeted alert**, adjust the zone, and approve. A resident phone inside the zone shows the alert on its home screen.
 5. Click **Confirm** on an incident. The resident's status screen changes to "A responder has seen this".
 6. **Reset** puts the demo back to the start.
+
+## What residents get
+
+- **Three ways to report**, each one tap from home: camera (photo or video), voice (live transcript you can edit), or text with quick chips.
+- **"I need help now"** is always on screen, even on the smallest phones. It offers Call 911, a request that puts you on the responder map, and a silent text mode for when speaking is unsafe.
+- **Status that checks in**: sent, location attached, identified as, how many others reported it nearby, reviewed by a person.
+- **Active near you**: nearby incidents with distance, and a "You are in the area" flag inside an alert zone.
+- **Alerts** for your location appear at the top of the home screen.
+- **No signal?** The report is saved on the phone with its location and sends by itself when signal returns.
+- **Light, dark, or follow the phone**, with the switch in the top bar.
 
 ## How it works
 
@@ -57,6 +67,24 @@ dashboard ◄── live updates (Server-Sent Events) ◄──┘
 - **Confidence.** Unconfirmed with one or two reports. Likely with three or more, or two with a photo or video. Confirmed only when a responder clicks Confirm.
 - **Alert zone.** The outline of every report location, padded by a buffer for that kind of event. For fire and smoke, the zone stretches downwind using live wind data. The resident count is the zone's area times average population density (3,200 per km² for LA, set with `POP_DENSITY_PER_KM2`). It is an estimate, and the dashboard labels it that way.
 - **People stay in charge.** Nothing goes to the public automatically. Alerts, dispatch, and marking someone safe all need a click from a responder.
+
+## Tests
+
+105 browser tests click through every screen on a phone-sized screen and the dashboard on a laptop-sized one, in both themes. They check:
+
+- Every flow: text, photo, video, voice, help, silent help, alerts, offline saving, responder actions, and live updates.
+- Layout at 320 to 1600 pixels wide with no sideways scrolling, and the help button always in view.
+- Text contrast in light and dark themes.
+- Speed: each screen opens in under 300 ms, nothing freezes the page, and the dashboard stays quick with 80 reports arriving at once.
+- No errors in the browser console.
+
+```bash
+cd app
+npm test                 # runs everything, about 2 minutes
+npm run test:report      # opens the results in a browser
+```
+
+Screenshots of every screen in both themes land in `test-results/visual/`.
 
 ## Settings
 
@@ -91,6 +119,8 @@ app/
   lib/db.js            SQLite tables (built into Node)
   scripts/scenario.js  demo incidents and the live replay
   public/              resident app and responder dashboard (plain HTML, CSS, JS)
+  public/sw.js         lets the resident app open with no signal
+  tests/               Playwright browser tests
 ```
 
 ## Known limits

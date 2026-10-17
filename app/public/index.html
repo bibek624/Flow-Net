@@ -12,6 +12,10 @@
 <link rel="apple-touch-icon" href="/icon.svg">
 <title>Report an incident</title>
 <link rel="stylesheet" href="/resident.css">
+<script>
+  // Set the theme before first paint so the page never flashes the wrong colors.
+  try { var t = localStorage.getItem('resident-theme'); if (t === 'light' || t === 'dark') document.documentElement.dataset.theme = t; } catch (e) {}
+</script>
 </head>
 <body>
 <main id="app">
@@ -20,7 +24,10 @@
   <section class="screen" data-screen="home">
     <header class="topbar">
       <div class="brand" data-app-name>Beacon</div>
-      <button class="pill" data-action="relocate"><span data-icon="pin" class="accent"></span><span data-loc-pill>Finding you…</span></button>
+      <div class="topbar-right">
+        <button class="round-sm" data-action="theme" aria-label="Change theme" title="Change theme"><span data-theme-icon></span></button>
+        <button class="pill" data-action="relocate"><span data-icon="pin" class="accent"></span><span data-loc-pill>Finding you…</span></button>
+      </div>
     </header>
     <div class="alert-banner" hidden data-alert>
       <div class="alert-level" data-alert-level></div>
@@ -45,7 +52,14 @@
         <span data-icon="chevron" class="muted"></span>
       </button>
     </div>
-    <p class="note">Every report helps confirm what's happening, so responders reach the people who need them first.</p>
+    <button class="outbox" data-outbox hidden data-action="flush-outbox">
+      <span class="outbox-dot"></span><span data-outbox-text></span>
+    </button>
+    <div class="nearby" data-nearby hidden>
+      <div class="nearby-head"><span class="live-dot on small"><span class="pulse"></span><span class="core"></span></span>Active near you</div>
+      <div data-nearby-list></div>
+    </div>
+    <p class="note" data-note>Every report helps confirm what's happening, so responders reach the people who need them first.</p>
     <div class="spacer"></div>
     <div class="bottom">
       <button class="btn-help" data-go="help">I need help now</button>
@@ -139,8 +153,8 @@
   <!-- 05 Sent -->
   <section class="screen" data-screen="sent" hidden>
     <div class="sent-head">
-      <h1 class="title">Got it.</h1>
-      <p class="lead left">Your report is helping confirm this.</p>
+      <h1 class="title" data-sent-title>Got it.</h1>
+      <p class="lead left" data-sent-lead>Your report is helping confirm this.</p>
     </div>
     <div class="panel timeline" data-timeline>
       <div class="step" data-step="sent">
